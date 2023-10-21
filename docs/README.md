@@ -13,7 +13,7 @@ Students should write the applications using WebFlux. Next, we detail the requir
     - Identifier 
     - Name 
     - Species 
-    -Birth date 
+    - Birth date 
     - Weight. 
 - **Owner data, including**: 
     - Identifier 
