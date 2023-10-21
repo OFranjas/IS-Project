@@ -1,4 +1,4 @@
-# Project 
+# IS-Project 
 
 ## Overview 
 In this project, students will develop a web application that exposes web services and a client application that will consume these web services.
