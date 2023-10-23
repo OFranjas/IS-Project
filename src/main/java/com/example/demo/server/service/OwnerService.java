@@ -3,7 +3,8 @@ package com.example.demo.server.service;
 import com.example.demo.server.model.Owner;
 import com.example.demo.server.repository.OwnerRepository;
 import com.example.demo.server.repository.PetRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.example.demo.server.utils.LoggerUtil;
+
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -36,6 +37,11 @@ public class OwnerService {
      * @return A reactive stream (Mono) containing the created owner.
      */
     public Mono<Owner> createOwner(Owner owner) {
+        // Ensure the ID is null to indicate an insert operation
+        owner.setIdentifier(null);
+
+        LoggerUtil.info(this.getClass().getName(), "Creating owner with name: " + owner.getName());
+
         return ownerRepository.save(owner);
     }
 
@@ -45,6 +51,9 @@ public class OwnerService {
      * @return A reactive stream (Flux) of all owners.
      */
     public Flux<Owner> getAllOwners() {
+
+        LoggerUtil.info(this.getClass().getName(), "Retrieving all owners");
+
         return ownerRepository.findAll();
     }
 
@@ -55,6 +64,9 @@ public class OwnerService {
      * @return A reactive stream (Mono) containing the owner or empty if not found.
      */
     public Mono<Owner> getOwnerById(Long id) {
+
+        LoggerUtil.info(this.getClass().getName(), "Retrieving owner with id: " + id);
+
         return ownerRepository.findById(id).switchIfEmpty(Mono.empty());
     }
 
@@ -65,12 +77,15 @@ public class OwnerService {
      * @return A reactive stream (Mono) containing the updated owner.
      */
     public Mono<Owner> updateOwner(Long id, Owner updatedOwner) {
+
+        LoggerUtil.info(this.getClass().getName(), "Updating owner with id: " + id);
+
         // Check if the owner with the given id exists
         return ownerRepository.findById(id)
                 .flatMap(existingOwner -> {
                     // Update the existing owner with the data from updatedOwner
                     existingOwner.setName(updatedOwner.getName());
-                    existingOwner.setPhoneNumber(updatedOwner.getPhoneNumber());
+                    existingOwner.setPhone_number(updatedOwner.getPhone_number());
 
                     // Save the updated owner
                     return ownerRepository.save(existingOwner);
@@ -86,11 +101,17 @@ public class OwnerService {
      *         an error if constraints are violated.
      */
     public Mono<Void> deleteOwner(Long id) {
-        return petRepository.findByOwnerId(id)
+
+        LoggerUtil.info(this.getClass().getName(), "Deleting owner with id: " + id);
+
+        return petRepository.findByOwnerid(id)
                 .hasElements()
                 .flatMap(hasPets -> {
                     if (hasPets) {
-                        return Mono.error(new RuntimeException("Cannot delete owner with associated pets."));
+                        LoggerUtil.error(this.getClass().getName(),
+                                "Owner with id " + id + " has pets and cannot be deleted.");
+
+                        return Mono.empty();
                     } else {
                         return ownerRepository.deleteById(id);
                     }

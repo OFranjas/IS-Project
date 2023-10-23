@@ -2,6 +2,8 @@ package com.example.demo.server.controller;
 
 import com.example.demo.server.model.Pet;
 import com.example.demo.server.service.PetService;
+import com.example.demo.server.utils.LoggerUtil;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +27,7 @@ public class PetController {
      */
     @GetMapping
     public Flux<Pet> getAllPets() {
+        LoggerUtil.info(this.getClass().getName(), "Got request: GET /pet");
         return petService.getAllPets();
     }
 
@@ -36,6 +39,7 @@ public class PetController {
      */
     @GetMapping("/{id}")
     public Mono<Pet> getPetById(@PathVariable Long id) {
+        LoggerUtil.info(this.getClass().getName(), "Got request: GET /pet/" + id);
         return petService.getPetById(id);
     }
 
@@ -48,6 +52,7 @@ public class PetController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<Pet> createPet(@RequestBody Pet pet) {
+        LoggerUtil.info(this.getClass().getName(), "Got request: POST /pet");
         return petService.createPet(pet);
     }
 
@@ -60,6 +65,7 @@ public class PetController {
      */
     @PutMapping("/{id}")
     public Mono<Pet> updatePet(@PathVariable Long id, @RequestBody Pet pet) {
+        LoggerUtil.info(this.getClass().getName(), "Got request: PUT /pet/" + id);
         return petService.updatePet(id, pet);
     }
 
@@ -72,6 +78,7 @@ public class PetController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> deletePet(@PathVariable Long id) {
+        LoggerUtil.info(this.getClass().getName(), "Got request: DELETE /pet/" + id);
         return petService.deletePet(id);
     }
 }

@@ -1,5 +1,10 @@
 package com.example.demo.server.model;
 
+import org.springframework.data.annotation.Id;
+
+import lombok.Data;
+import lombok.Lombok;
+
 /**
  * Represents an Owner entity in the system.
  *
@@ -12,43 +17,23 @@ package com.example.demo.server.model;
  * signifying that a single owner can have multiple pets. This relationship
  * is established through the ownerId attribute in the Pet entity.
  */
+@Data
 public class Owner {
+
+    @Id
     private Long identifier;
+
     private String name;
-    private String PhoneNumber;
+    private String phone_number;
 
     // Constructors
     public Owner() {
     }
 
-    public Owner(Long identifier, String name, String PhoneNumber) {
+    public Owner(Long identifier, String name, String phone_number) {
         this.identifier = identifier;
         this.name = name;
-        this.PhoneNumber = PhoneNumber;
+        this.phone_number = phone_number;
     }
 
-    // Getters and Setters
-    public Long getIdentifier() {
-        return identifier;
-    }
-
-    public void setIdentifier(Long identifier) {
-        this.identifier = identifier;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getPhoneNumber() {
-        return PhoneNumber;
-    }
-
-    public void setPhoneNumber(String PhoneNumber) {
-        this.PhoneNumber = PhoneNumber;
-    }
 }

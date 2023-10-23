@@ -26,9 +26,8 @@ public interface PetRepository extends ReactiveCrudRepository<Pet, Long> {
      * 4. The resulting pets are returned as a Flux<Pet>, a reactive stream type
      * from Project Reactor.
      *
-     * @param ownerId The ID of the owner whose pets we want to retrieve.
+     * @param ownerid The ID of the owner whose pets we want to retrieve.
      * @return A reactive stream (Flux) of pets belonging to the specified owner.
      */
-    Flux<Pet> findByOwnerId(Long ownerId);
+    Flux<Pet> findByOwnerid(Long ownerid);
 }
- 

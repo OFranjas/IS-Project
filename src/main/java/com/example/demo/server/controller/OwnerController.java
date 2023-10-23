@@ -2,6 +2,8 @@ package com.example.demo.server.controller;
 
 import com.example.demo.server.model.Owner;
 import com.example.demo.server.service.OwnerService;
+import com.example.demo.server.utils.LoggerUtil;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +27,8 @@ public class OwnerController {
      */
     @GetMapping
     public Flux<Owner> getAllOwners() {
+        LoggerUtil.info(this.getClass().getName(), "Got request: GET /owner");
+        
         return ownerService.getAllOwners();
     }
 
@@ -36,6 +40,8 @@ public class OwnerController {
      */
     @GetMapping("/{id}")
     public Mono<Owner> getOwnerById(@PathVariable Long id) {
+        LoggerUtil.info(this.getClass().getName(), "Got request: GET /owner/" + id);
+
         return ownerService.getOwnerById(id);
     }
 
@@ -48,6 +54,8 @@ public class OwnerController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<Owner> createOwner(@RequestBody Owner owner) {
+        LoggerUtil.info(this.getClass().getName(), "Got request: POST /owner");
+
         return ownerService.createOwner(owner);
     }
 
@@ -60,6 +68,8 @@ public class OwnerController {
      */
     @PutMapping("/{id}")
     public Mono<Owner> updateOwner(@PathVariable Long id, @RequestBody Owner owner) {
+        LoggerUtil.info(this.getClass().getName(), "Got request: PUT /owner/" + id);
+
         return ownerService.updateOwner(id, owner);
     }
 
@@ -72,6 +82,8 @@ public class OwnerController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> deleteOwner(@PathVariable Long id) {
+        LoggerUtil.info(this.getClass().getName(), "Got request: DELETE /owner/" + id);
+
         return ownerService.deleteOwner(id);
     }
 }
