@@ -49,7 +49,7 @@ public class OwnerServiceClient {
      */
     public Mono<Owner> getOwnerById(Long id) {
         return webClient.get()
-                .uri("/owners/{id}", id)
+                .uri("http://localhost:8080/owner/{id}", id)
                 .retrieve()
                 .onStatus(status -> !status.is2xxSuccessful(),
                         response -> Mono.error(new ClientException("Error fetching owner with ID: " + id)))

@@ -34,7 +34,7 @@ public class PetServiceClient {
      */
     public Flux<Pet> getAllPets() {
         return webClient.get()
-                .uri("/pets")
+                .uri("http://localhost:8080/pet")
                 .retrieve()
                 .onStatus(status -> !status.is2xxSuccessful(),
                         response -> Mono.error(new ClientException("Error fetching pets")))
@@ -49,7 +49,7 @@ public class PetServiceClient {
      */
     public Mono<Pet> getPetById(Long id) {
         return webClient.get()
-                .uri("/pets/{id}", id)
+                .uri("http://localhost:8080/pet/{id}", id)
                 .retrieve()
                 .onStatus(status -> !status.is2xxSuccessful(),
                         response -> Mono.error(new ClientException("Error fetching pet with ID: " + id)))

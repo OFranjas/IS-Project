@@ -85,6 +85,7 @@ public class PetService {
                     existingPet.setSpecies(UptadetPet.getSpecies());
                     existingPet.setBirth_date(UptadetPet.getBirth_date());
                     existingPet.setWeight(UptadetPet.getWeight());
+                    existingPet.setOwnerid(UptadetPet.getOwnerid());
 
                     // Save the updated pet
                     return petRepository.save(existingPet);
