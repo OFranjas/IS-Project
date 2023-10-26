@@ -179,15 +179,15 @@ public class OwnerServiceTest {
             Pet pet1 = new Pet();
             pet1.setIdentifier(1L);
             pet1.setName("Buddy");
-            pet1.setOwnerId(1L);
+            pet1.setOwnerid(1L);
 
             Pet pet2 = new Pet();
             pet2.setIdentifier(2L);
             pet2.setName("Max");
-            pet2.setOwnerId(1L);
+            pet2.setOwnerid(1L);
 
             lenient().when(ownerRepository.findAll()).thenReturn(Flux.just(owner1));
-            lenient().when(petRepository.findByOwnerId(1L)).thenReturn(Flux.just(pet1, pet2));
+            lenient().when(petRepository.findByOwnerid(1L)).thenReturn(Flux.just(pet1, pet2));
 
             StepVerifier.create(ownerService.getOwnerById(1L))
                     .expectNextMatches(owners -> owners.getName().equals("John"))
@@ -207,7 +207,7 @@ public class OwnerServiceTest {
     @Test
     public void deleteOwner_NoPetsTest() {
         try {
-            lenient().when(petRepository.findByOwnerId(anyLong())).thenReturn(Flux.empty()); // No pets associated
+            lenient().when(petRepository.findByOwnerid(anyLong())).thenReturn(Flux.empty()); // No pets associated
             lenient().when(ownerRepository.deleteById(anyLong())).thenReturn(Mono.empty());
 
             StepVerifier.create(ownerService.deleteOwner(1L))
@@ -231,7 +231,7 @@ public class OwnerServiceTest {
             pet.setIdentifier(2L);
             pet.setName("Buddy");
 
-            lenient().when(petRepository.findByOwnerId(anyLong())).thenReturn(Flux.just(pet)); // Owner has pets
+            lenient().when(petRepository.findByOwnerid(anyLong())).thenReturn(Flux.just(pet)); // Owner has pets
 
             StepVerifier.create(ownerService.deleteOwner(1L))
                     .expectErrorMatches(e -> e.getMessage().contains("Cannot delete owner with associated pets."))

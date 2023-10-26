@@ -1,5 +1,5 @@
 package com.example.demo.client.utils;
 
-public class FileUtil {
+public class FileOutputUtil {
 
 }
