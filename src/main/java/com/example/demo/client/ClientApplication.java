@@ -1,6 +1,9 @@
 package com.example.demo.client;
 
-import java.util.concurrent.atomic.AtomicReference;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -9,7 +12,9 @@ import com.example.demo.client.service.OwnerServiceClient;
 import com.example.demo.client.service.PetServiceClient;
 import com.example.demo.server.model.Owner;
 import com.example.demo.server.model.Pet;
+import com.example.demo.client.utils.FileOutputUtil;
 
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public class ClientApplication {
@@ -90,13 +95,20 @@ public class ClientApplication {
         // Create the service client
         OwnerServiceClient ownerServiceClient = new OwnerServiceClient(webClient);
 
+        // Define the file path
+        String filePath = "Task1_ownersNamesPhones.txt";
+
+        // Clear the file
+        FileOutputUtil.clearFile(filePath);
+
         // Subscribe to getAllOwners and print the data when it's available
         ownerServiceClient.getAllOwners()
                 .subscribe(owner -> {
                     // Handle each received owner here
-                    System.out.println(
-                            "Owner Name: " + owner.getName() + " -> phone number: " + owner.getPhone_number());
-                    // Add more owner details as needed
+                    String ownerDetails = "Owner Name: " + owner.getName() + " -> phone number: "
+                            + owner.getPhone_number();
+                    // System.out.println(ownerDetails); // Optional: Print to console
+                    FileOutputUtil.writeToFile(filePath, ownerDetails); // Write to file
                 },
                         error -> {
                             // Handle errors if they occur
@@ -113,13 +125,22 @@ public class ClientApplication {
         // Create the service client
         PetServiceClient petServiceClient = new PetServiceClient(webClient);
 
-        // Subscribe to getNumberOfPets and print the data when it's available
+        // Define the file path
+        String filePath = "Task2_totalPets.txt";
+
+        // Clear the file
+        FileOutputUtil.clearFile(filePath);
+
+        // Subscribe to getNumberOfPets and write the data to the file when it's
+        // available
         petServiceClient.getAllPets()
                 .reduce(0L, (count, pet) -> count + 1)
                 .subscribe(
                         count -> {
                             // Handle the received pet count here
-                            System.out.println("Total number of pets: " + count);
+                            String petCount = "Total number of pets: " + count;
+                            // System.out.println(petCount); // Optional: Print to console
+                            FileOutputUtil.writeToFile(filePath, petCount); // Write to file
                         },
                         error -> {
                             // Handle errors if they occur
@@ -137,13 +158,20 @@ public class ClientApplication {
         // Create the service client
         PetServiceClient petServiceClient = new PetServiceClient(webClient);
 
+        // Define the path
+        String filePath = "Task3_totalDogs.txt";
+
+        // Clear the file
+        FileOutputUtil.clearFile(filePath);
+
         // Subscribe to pets with species "dog" and print the count when it's available
         petServiceClient.getAllPets()
                 .filter(pet -> pet.getSpecies().equals("dog"))
                 .count()
                 .subscribe(count -> {
                     // Handle the count here
-                    System.out.println("Number of dogs: " + count);
+                    // System.out.println("Number of dogs: " + count);
+                    FileOutputUtil.writeToFile(filePath, "Number of dogs: " + count);
                 },
                         error -> {
                             // Handle errors if they occur
@@ -160,21 +188,38 @@ public class ClientApplication {
         // Create the service client
         PetServiceClient petServiceClient = new PetServiceClient(webClient);
 
-        // Subscribe to getAllPets and process the data when it's available
+        // Define the path
+        String filePath = "Task4_sortedWeight.txt";
+
+        // Clear the file
+        FileOutputUtil.clearFile(filePath);
+
+        // Create a list to store pets
+        List<Pet> sortedPetsList = new ArrayList<>();
+
+        // Subscribe to getAllPets and add pets to the list when they arrive
         petServiceClient.getAllPets()
-                .concatMap(
-                        pet -> Mono.just(pet)
-                                .doOnNext(sortedPet -> {
-                                    // Print each pet as it arrives (already sorted)
-                                    System.out.println("Pet Name: " + sortedPet.getName());
-                                    System.out.println("Pet Weight: " + sortedPet.getWeight());
-                                    // Add more pet details as needed
-                                }))
                 .subscribe(
-                        null,
+                        pet -> sortedPetsList.add(pet),
                         error -> {
                             // Handle errors if they occur
                             System.err.println("Error fetching pets: " + error.getMessage());
+                        },
+                        () -> {
+                            // When all pets have arrived, sort the list by weight
+                            sortedPetsList.sort(Comparator.comparingDouble(Pet::getWeight));
+
+                            // Process and write pets to the file
+                            sortedPetsList.forEach(pet -> {
+                                // Print each pet as it arrives
+                                // System.out.println("Pet Name: " + pet.getName());
+                                // System.out.println("Pet Weight: " + pet.getWeight());
+
+                                // Write each pet to the file
+                                String petDetails = "Pet Name: " + pet.getName() + " -> weight: " + pet.getWeight();
+                                FileOutputUtil.writeToFile(filePath, petDetails);
+                                // Add more pet details as needed
+                            });
                         });
     }
 
@@ -187,6 +232,12 @@ public class ClientApplication {
     public void AverageAndStdDevOfWeights(WebClient webClient) {
         // Create the service client
         PetServiceClient petServiceClient = new PetServiceClient(webClient);
+
+        // Define the path
+        String filePath = "Task5_stdDevWeights.txt";
+
+        // Clear the file
+        FileOutputUtil.clearFile(filePath);
 
         // Calculate sum of weights, sum of squares, and count
         Mono<Double> sumMono = petServiceClient.getAllPets()
@@ -212,8 +263,11 @@ public class ClientApplication {
                         double variance = (sumOfSquares / count) - (average * average);
                         double stdDev = Math.sqrt(variance);
 
-                        System.out.printf("Average Weight: %.3f\n", average);
-                        System.out.printf("Standard Deviation: %.3f\n", stdDev);
+                        // System.out.printf("Average Weight: %.3f\n", average);
+                        // System.out.printf("Standard Deviation: %.3f\n", stdDev);
+
+                        FileOutputUtil.writeToFile(filePath, "Average Weight: " + average);
+                        FileOutputUtil.writeToFile(filePath, "Standard Deviation: " + stdDev);
                     } else {
                         System.out.println("No pets found.");
                     }
@@ -232,6 +286,12 @@ public class ClientApplication {
         // Create the service client
         PetServiceClient petServiceClient = new PetServiceClient(webClient);
 
+        // Define the path
+        String filePath = "Task6_eldestPet.txt";
+
+        // Clear the file
+        FileOutputUtil.clearFile(filePath);
+
         // Find the eldest pet by comparing birth dates
         petServiceClient.getAllPets()
                 .reduce((pet1, pet2) -> {
@@ -244,7 +304,8 @@ public class ClientApplication {
                 .subscribe(
                         eldestPet -> {
                             // Handle the eldest pet here
-                            System.out.println("Name of the eldest pet: " + eldestPet.getName());
+                            // System.out.println("Name of the eldest pet: " + eldestPet.getName());
+                            FileOutputUtil.writeToFile(filePath, "Name of the eldest pet: " + eldestPet.getName());
                         },
                         error -> {
                             // Handle errors if they occur
