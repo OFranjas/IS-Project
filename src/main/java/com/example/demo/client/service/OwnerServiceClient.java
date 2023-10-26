@@ -34,7 +34,7 @@ public class OwnerServiceClient {
      */
     public Flux<Owner> getAllOwners() {
         return webClient.get()
-                .uri("/owners")
+                .uri("http://localhost:8080/owner")
                 .retrieve()
                 .onStatus(status -> !status.is2xxSuccessful(),
                         response -> Mono.error(new ClientException("Error fetching owners")))
