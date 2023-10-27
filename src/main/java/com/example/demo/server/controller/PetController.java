@@ -81,4 +81,16 @@ public class PetController {
         LoggerUtil.info(this.getClass().getName(), "Got request: DELETE /pet/" + id);
         return petService.deletePet(id);
     }
+
+    /**
+     * Retrieve identifiers of all pets for a given owner.
+     *
+     * @param ownerId The identifier of the owner.
+     * @return A list of identifiers of pets for the specified owner.
+     */
+    @GetMapping("/owner/{ownerId}")
+    public Flux<Long> getPetIdsByOwnerId(@PathVariable Long ownerId) {
+        LoggerUtil.info(this.getClass().getName(), "Got request: GET /pet/owner/" + ownerId);
+        return petService.getPetIdsByOwnerId(ownerId);
+    }
 }

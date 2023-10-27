@@ -104,4 +104,9 @@ public class PetService {
 
         return petRepository.deleteById(id);
     }
+
+    public Flux<Long> getPetIdsByOwnerId(Long ownerId) {
+        // Assuming findAllByOwnerId returns Flux<Pet>
+        return petRepository.findByOwnerid(ownerId).map(Pet::getIdentifier);
+    }
 }

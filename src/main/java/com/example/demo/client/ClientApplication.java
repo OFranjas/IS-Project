@@ -3,7 +3,9 @@ package com.example.demo.client;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -16,6 +18,8 @@ import com.example.demo.client.utils.FileOutputUtil;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 public class ClientApplication {
 
@@ -79,6 +83,13 @@ public class ClientApplication {
         }
 
         NameOfEldestPet(webClient); // Task 6: Print the name of the eldest pet
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        averagePetsPerOwner(webClient); // Task 7: Print the average number of pets per owner
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
@@ -313,4 +324,48 @@ public class ClientApplication {
                         });
     }
 
+    /***
+     * Task 7: Write to a file the Average number of Pets per Owner, considering
+     * only the
+     * owners with more than one animal.
+     * 
+     * @param webClient The WebClient to use for making requests.
+     */
+    public void averagePetsPerOwner(WebClient webClient) {
+        // Create the service client
+        PetServiceClient petServiceClient = new PetServiceClient(webClient);
+
+        // Define the path
+        String filePath = "Task7_averagePetsOwner.txt";
+
+        // Clear the file
+        FileOutputUtil.clearFile(filePath);
+
+        petServiceClient.getAllPets()
+                .reduce(new HashMap<Long, Long>(), (map, pet) -> {
+                    map.put(pet.getOwnerid(), map.getOrDefault(pet.getOwnerid(), 0L) + 1);
+                    return map;
+                }) // Aggregate pets count per owner in a map
+                .flatMap(map -> {
+                    long totalPets = 0;
+                    long totalOwners = 0;
+
+                    for (Map.Entry<Long, Long> entry : map.entrySet()) {
+                        if (entry.getValue() > 1) {
+                            totalPets += entry.getValue();
+                            totalOwners++;
+                        }
+                    }
+
+                    double average = (double) totalPets / totalOwners;
+                    return Mono.just(average);
+                })
+                .subscribe(
+                        avg -> {
+                            FileOutputUtil.writeToFile(filePath, "Average number of pets per owner: " + avg);
+                        },
+                        error -> {
+                            System.err.println("Error computing average: " + error.getMessage());
+                        });
+    }
 }
