@@ -28,7 +28,7 @@ public class OwnerController {
     @GetMapping
     public Flux<Owner> getAllOwners() {
         LoggerUtil.info(this.getClass().getName(), "Got request: GET /owner");
-        
+
         return ownerService.getAllOwners();
     }
 

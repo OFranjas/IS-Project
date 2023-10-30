@@ -3,7 +3,6 @@ package com.example.demo.server.model;
 import org.springframework.data.annotation.Id;
 
 import lombok.Data;
-import lombok.Lombok;
 
 /**
  * Represents an Owner entity in the system.

@@ -1,6 +1,5 @@
 package com.example.demo.client;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -9,7 +8,6 @@ import java.util.Map;
 
 import org.springframework.web.reactive.function.client.WebClient;
 
-import com.example.demo.client.config.WebClientConfig;
 import com.example.demo.client.service.OwnerServiceClient;
 import com.example.demo.client.service.PetServiceClient;
 import com.example.demo.server.model.Owner;
@@ -18,7 +16,6 @@ import com.example.demo.client.utils.FileOutputUtil;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
 public class Tasks {
@@ -46,22 +43,28 @@ public class Tasks {
             // Clear the file
             FileOutputUtil.clearFile(filePath);
 
-            // Subscribe to getAllOwners and print the data when it's available
+            // Create a StringBuilder to buffer the owner details
+            StringBuilder ownerDetailsBuffer = new StringBuilder();
+
+            // Subscribe to getAllOwners
             ownerServiceClient.getAllOwners()
-                    .subscribe(owner -> {
+                    .doOnNext(owner -> {
                         // Handle each received owner here
                         String ownerDetails = "Owner Name: " + owner.getName() + " -> phone number: "
                                 + owner.getPhone_number();
-                        // System.out.println(ownerDetails); // Optional: Print to console
-                        FileOutputUtil.writeToFile(filePath, ownerDetails); // Write to file
-                    },
-                            error -> {
-                                // Handle errors if they occur
-                                System.err.println("Error fetching owners: " + error.getMessage());
-                            });
+                        ownerDetailsBuffer.append(ownerDetails).append("\n"); // Append to the buffer with a newline
+                    })
+                    .doOnError(error -> {
+                        // Handle errors if they occur
+                        System.err.println("Error fetching owners: " + error.getMessage());
+                    })
+                    .doOnComplete(() -> {
+                        // Write the buffered owner details to the file
+                        FileOutputUtil.writeToFile(filePath, ownerDetailsBuffer.toString());
+                    })
+                    .subscribe(); // This will start the process
 
         };
-
     }
 
     /**
@@ -82,21 +85,26 @@ public class Tasks {
             // Clear the file
             FileOutputUtil.clearFile(filePath);
 
-            // Subscribe to getNumberOfPets and write the data to the file when it's
-            // available
+            // Create a buffer for the result string
+            StringBuilder resultBuffer = new StringBuilder();
+
+            // Subscribe to getAllPets and count the pets
             petServiceClient.getAllPets()
-                    .reduce(0L, (count, pet) -> count + 1)
-                    .subscribe(
-                            count -> {
-                                // Handle the received pet count here
-                                String petCount = "Total number of pets: " + count;
-                                // System.out.println(petCount); // Optional: Print to console
-                                FileOutputUtil.writeToFile(filePath, petCount); // Write to file
-                            },
-                            error -> {
-                                // Handle errors if they occur
-                                System.err.println("Error fetching pet count: " + error.getMessage());
-                            });
+                    .count() // This returns a Mono<Long> with the count of pets
+                    .doOnNext(count -> {
+                        // Handle the received pet count here
+                        String petCount = "Total number of pets: " + count;
+                        resultBuffer.append(petCount); // Store the result in the buffer
+                    })
+                    .doOnError(error -> {
+                        // Handle errors if they occur
+                        System.err.println("Error fetching pet count: " + error.getMessage());
+                    })
+                    .doOnSuccess(count -> {
+                        // Write the result to the file
+                        FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
+                    })
+                    .subscribe(); // This will start the process
         };
     }
 
@@ -117,19 +125,27 @@ public class Tasks {
             // Clear the file
             FileOutputUtil.clearFile(filePath);
 
-            // Subscribe to pets with species "dog" and print the count when it's available
+            // Create a buffer for the result string
+            StringBuilder resultBuffer = new StringBuilder();
+
+            // Subscribe to pets with species "dog" and count them
             petServiceClient.getAllPets()
-                    .filter(pet -> pet.getSpecies().equals("dog"))
-                    .count()
-                    .subscribe(count -> {
+                    .filter(pet -> "dog".equalsIgnoreCase(pet.getSpecies()))
+                    .count() // This returns a Mono<Long> with the count of dogs
+                    .doOnNext(count -> {
                         // Handle the count here
-                        // System.out.println("Number of dogs: " + count);
-                        FileOutputUtil.writeToFile(filePath, "Number of dogs: " + count);
-                    },
-                            error -> {
-                                // Handle errors if they occur
-                                System.err.println("Error fetching pets: " + error.getMessage());
-                            });
+                        String dogCount = "Number of dogs: " + count;
+                        resultBuffer.append(dogCount); // Store the result in the buffer
+                    })
+                    .doOnError(error -> {
+                        // Handle errors if they occur
+                        System.err.println("Error fetching number of dogs: " + error.getMessage());
+                    })
+                    .doOnSuccess(count -> {
+                        // Write the result to the file upon successful completion
+                        FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
+                    })
+                    .subscribe(); // This will start the process
 
         };
 
@@ -153,34 +169,27 @@ public class Tasks {
             // Clear the file
             FileOutputUtil.clearFile(filePath);
 
-            // Create a list to store pets
-            List<Pet> sortedPetsList = new ArrayList<>();
+            // Create a buffer to store pets' details
+            StringBuilder petDetailsBuffer = new StringBuilder();
 
-            // Subscribe to getAllPets and add pets to the list when they arrive
+            // Subscribe to getAllPets, filter, and process them
             petServiceClient.getAllPets()
                     .filter(pet -> pet.getWeight() > 10) // Only keep pets with weight greater than 10
-                    .subscribe(
-                            pet -> sortedPetsList.add(pet),
-                            error -> {
-                                // Handle errors if they occur
-                                System.err.println("Error fetching pets: " + error.getMessage());
-                            },
-                            () -> {
-                                // When all pets have arrived, sort the list by weight
-                                sortedPetsList.sort(Comparator.comparingDouble(Pet::getWeight));
-
-                                // Process and write pets to the file
-                                sortedPetsList.forEach(pet -> {
-                                    // Print each pet as it arrives
-                                    // System.out.println("Pet Name: " + pet.getName());
-                                    // System.out.println("Pet Weight: " + pet.getWeight());
-
-                                    // Write each pet to the file
-                                    String petDetails = "Pet Name: " + pet.getName() + " -> weight: " + pet.getWeight();
-                                    FileOutputUtil.writeToFile(filePath, petDetails);
-                                    // Add more pet details as needed
-                                });
-                            });
+                    .sort(Comparator.comparingDouble(Pet::getWeight)) // Sort the pets by weight
+                    .doOnNext(pet -> {
+                        // Append each pet's details to the buffer
+                        String petDetails = "Pet Name: " + pet.getName() + " -> weight: " + pet.getWeight() + "\n";
+                        petDetailsBuffer.append(petDetails);
+                    })
+                    .doOnError(error -> {
+                        // Handle errors if they occur
+                        System.err.println("Error fetching pets: " + error.getMessage());
+                    })
+                    .doOnComplete(() -> {
+                        // Write the pet details to the file upon completion
+                        FileOutputUtil.writeToFile(filePath, petDetailsBuffer.toString());
+                    })
+                    .subscribe(); // This will start the process
 
         };
 
@@ -205,21 +214,28 @@ public class Tasks {
             // Clear the file
             FileOutputUtil.clearFile(filePath);
 
-            // Calculate sum of weights, sum of squares, and count
-            Mono<Double> sumMono = petServiceClient.getAllPets()
+            // Create a buffer to store the results
+            StringBuilder resultBuffer = new StringBuilder();
+
+            // ? Cache the result of getAllPets() so we call it only once
+            Flux<Pet> cachedPets = petServiceClient.getAllPets().cache();
+
+            // Calculate sum of weights
+            Mono<Double> sumMono = cachedPets
                     .map(Pet::getWeight)
                     .reduce(0.0, (acc, value) -> acc + value);
 
-            Mono<Double> sumOfSquaresMono = petServiceClient.getAllPets()
+            // Calculate sum of squares of weights
+            Mono<Double> sumOfSquaresMono = cachedPets
                     .map(pet -> pet.getWeight() * pet.getWeight())
                     .reduce(0.0, (acc, value) -> acc + value);
 
-            Mono<Long> countMono = petServiceClient.getAllPets()
-                    .count();
+            // Count the pets
+            Mono<Long> countMono = cachedPets.count();
 
             // Combine the results and calculate average and standard deviation
             Mono.zip(sumMono, sumOfSquaresMono, countMono)
-                    .flatMap(tuple -> {
+                    .doOnNext(tuple -> {
                         double sum = tuple.getT1();
                         double sumOfSquares = tuple.getT2();
                         long count = tuple.getT3();
@@ -229,18 +245,23 @@ public class Tasks {
                             double variance = (sumOfSquares / count) - (average * average);
                             double stdDev = Math.sqrt(variance);
 
-                            // System.out.printf("Average Weight: %.3f\n", average);
-                            // System.out.printf("Standard Deviation: %.3f\n", stdDev);
+                            resultBuffer.append("Average Weight: ").append(String.format("%.2f", average)).append("\n");
+                            resultBuffer.append("Standard Deviation: ").append(String.format("%.2f", stdDev))
+                                    .append("\n");
 
-                            FileOutputUtil.writeToFile(filePath, "Average Weight: " + average);
-                            FileOutputUtil.writeToFile(filePath, "Standard Deviation: " + stdDev);
                         } else {
-                            System.out.println("No pets found.");
+                            resultBuffer.append("No pets found.\n");
                         }
-
-                        return Mono.empty();
                     })
-                    .subscribe();
+                    .doOnError(error -> {
+                        // Handle errors if they occur
+                        System.err.println("Error calculating weights: " + error.getMessage());
+                    })
+                    .doOnSuccess(tuple -> {
+                        // Write the results to the file when the operation completes successfully
+                        FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
+                    })
+                    .subscribe(); // This will start the process
 
         };
 
@@ -264,6 +285,8 @@ public class Tasks {
             // Clear the file
             FileOutputUtil.clearFile(filePath);
 
+            StringBuilder resultBuffer = new StringBuilder();
+
             // Find the eldest pet by comparing birth dates
             petServiceClient.getAllPets()
                     .reduce((pet1, pet2) -> {
@@ -273,16 +296,16 @@ public class Tasks {
                             return pet2;
                         }
                     })
-                    .subscribe(
-                            eldestPet -> {
-                                // Handle the eldest pet here
-                                // System.out.println("Name of the eldest pet: " + eldestPet.getName());
-                                FileOutputUtil.writeToFile(filePath, "Name of the eldest pet: " + eldestPet.getName());
-                            },
-                            error -> {
-                                // Handle errors if they occur
-                                System.err.println("Error fetching pets: " + error.getMessage());
-                            });
+                    .doOnSuccess(eldestPet -> {
+                        // Handle the eldest pet here
+                        resultBuffer.append("Name of the eldest pet: ").append(eldestPet.getName()).append("\n");
+                        FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
+                    })
+                    .doOnError(error -> {
+                        // Handle errors if they occur
+                        System.err.println("Error fetching pets: " + error.getMessage());
+                    })
+                    .subscribe();
 
         };
 
@@ -323,29 +346,27 @@ public class Tasks {
                             }
                         }
 
-                        double average = (double) totalPets / totalOwners;
+                        double average = totalOwners == 0 ? 0 : (double) totalPets / totalOwners;
                         return Mono.just(average);
                     })
-                    .subscribe(
-                            avg -> {
-                                FileOutputUtil.writeToFile(filePath, "Average number of pets per owner: " + avg);
-                            },
-                            error -> {
-                                System.err.println("Error computing average: " + error.getMessage());
-                            });
+                    .doOnSuccess(avg -> {
+                        String result = "Average number of pets per owner: " + avg;
+                        FileOutputUtil.writeToFile(filePath, result);
+                    })
+                    .doOnError(error -> {
+                        // Handle errors if they occur
+                        System.err.println("Error computing average: " + error.getMessage());
+                    })
+                    .subscribe();
 
         };
 
     }
 
     /**
-     * Task 8: Get the Owner Names and the number of Pets they have,
+     * Task 8: Get the Owner Names and the number of Pets they have, sorted by the
+     * number of Pets.
      *
-     * This function fetches all owners and their associated pets' ids from the
-     * server,
-     * then writes the sorted (by number of pets) output to a file. The data
-     * transformation mostly happens on the client side due to limitations on the
-     * server.
      * 
      * @param webClient The WebClient to use for making requests.
      */
@@ -362,22 +383,28 @@ public class Tasks {
             // Clear the file
             FileOutputUtil.clearFile(filePath);
 
-            // Fetch all owners
+            StringBuilder resultBuffer = new StringBuilder();
+
             ownerServiceClient.getAllOwners()
                     .flatMap(owner -> petServiceClient.getPetIdsByOwnerId(owner.getIdentifier())
                             .count()
-                            .map(count -> Tuples.of(owner, count))) // This maps the Mono<Long> to a Mono<Tuple2<Owner,
-                                                                    // Long>>
+                            .map(count -> Tuples.of(owner, count)))
                     .sort((tuple1, tuple2) -> Long.compare(tuple2.getT2(), tuple1.getT2())) // Sort by pet count
-                    .subscribe(
-                            tuple -> {
-                                Owner owner = tuple.getT1();
-                                long count = tuple.getT2();
+                    .doOnNext(tuple -> {
+                        Owner owner = tuple.getT1();
+                        long count = tuple.getT2();
+                        resultBuffer.append("Owner Name: ").append(owner.getName()).append(" -> Number of Pets: ")
+                                .append(count).append("\n");
+                    })
+                    .doOnError(error -> {
+                        // Handle errors if they occur
+                        System.err.println("Error fetching owner and pet details: " + error.getMessage());
+                    })
+                    .doOnComplete(() -> {
+                        FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
+                    })
+                    .subscribe();
 
-                                String ownerDetails = "Owner Name: " + owner.getName() + " -> Number of Pets: " + count;
-                                FileOutputUtil.writeToFile(filePath, ownerDetails);
-                            },
-                            error -> System.err.println("Error fetching owner and pet details: " + error.getMessage()));
         };
 
     }
@@ -385,11 +412,6 @@ public class Tasks {
     /**
      * Task 9: Get the owner names and pet names sorted by pet count
      * 
-     * This function fetches all owners and their associated pets' names from the
-     * server,
-     * then writes the sorted (by number of pets) output to a file. The data
-     * transformation mostly happens on the client side due to limitations on the
-     * server.
      *
      * @param webClient The WebClient instance for making the requests.
      */
@@ -407,6 +429,9 @@ public class Tasks {
             // Clear the file
             FileOutputUtil.clearFile(filePath);
 
+            // Create a buffer for the result string
+            StringBuilder resultBuffer = new StringBuilder();
+
             // Work the magic
             ownerServiceClient.getAllOwners()
                     .flatMap(owner -> petServiceClient.getPetIdsByOwnerId(owner.getIdentifier())
@@ -418,16 +443,20 @@ public class Tasks {
                         return list;
                     }).map(names -> Tuples.of(groupedFlux.key(), names)))
                     .sort((tuple1, tuple2) -> Integer.compare(tuple2.getT2().size(), tuple1.getT2().size()))
-                    .subscribe(
-                            tuple -> {
-                                Owner owner = tuple.getT1();
-                                List<String> petNames = tuple.getT2();
-
-                                String ownerDetails = "Owner Name: " + owner.getName() + " -> Pets: "
-                                        + String.join(", ", petNames);
-                                FileOutputUtil.writeToFile(filePath, ownerDetails);
-                            },
-                            error -> System.err.println("Error fetching owner and pet details: " + error.getMessage()));
+                    .doOnNext(tuple -> {
+                        Owner owner = tuple.getT1();
+                        List<String> petNames = tuple.getT2();
+                        resultBuffer.append("Owner Name: ").append(owner.getName()).append(" -> Pets: ")
+                                .append(String.join(", ", petNames)).append("\n");
+                    })
+                    .doOnError(error -> {
+                        // Handle errors if they occur
+                        System.err.println("Error fetching owner and pet details: " + error.getMessage());
+                    })
+                    .doOnComplete(() -> {
+                        FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
+                    })
+                    .subscribe();
 
         };
 

@@ -4,8 +4,6 @@ import com.example.demo.server.model.Pet;
 import com.example.demo.server.repository.PetRepository;
 import com.example.demo.server.utils.LoggerUtil;
 
-import ch.qos.logback.classic.Logger;
-
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;

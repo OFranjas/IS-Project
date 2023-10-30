@@ -5,8 +5,6 @@ import org.slf4j.LoggerFactory;
 
 public class LoggerUtil {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(LoggerUtil.class);
-
     private LoggerUtil() {
         // Private constructor to prevent instantiation
     }

@@ -1,8 +1,6 @@
 package com.example.demo.server.model;
 
 import lombok.Data;
-import lombok.Lombok;
-import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 

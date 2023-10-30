@@ -1,2 +1,3 @@
-Average Weight: 98.40714285714287
-Standard Deviation: 101.48601602673932
+Average Weight: 98.41
+Standard Deviation: 101.49
+

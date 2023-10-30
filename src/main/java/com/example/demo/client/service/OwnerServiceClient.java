@@ -2,7 +2,6 @@ package com.example.demo.client.service;
 
 import com.example.demo.client.exceptions.ClientException;
 import com.example.demo.server.model.Owner;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
@@ -22,7 +21,6 @@ public class OwnerServiceClient {
      *
      * @param webClient The WebClient instance for making HTTP calls.
      */
-    @Autowired
     public OwnerServiceClient(WebClient webClient) {
         this.webClient = webClient;
     }
