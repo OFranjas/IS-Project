@@ -1,3 +1,6 @@
-Pet Name: Pedro Alberto -> weight: 0.4
 Pet Name: Testado -> weight: 69.69
+Pet Name: Coninha -> weight: 69.69
+Pet Name: Conaça -> weight: 69.69
+Pet Name: Cona -> weight: 69.69
+Pet Name: Conão -> weight: 69.69
 Pet Name: Rammus -> weight: 340.0

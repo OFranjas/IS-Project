@@ -1,1 +1,1 @@
-Total number of pets: 3
+Total number of pets: 7

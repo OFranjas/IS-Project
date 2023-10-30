@@ -1,1 +1,1 @@
-Number of dogs: 1
+Number of dogs: 5

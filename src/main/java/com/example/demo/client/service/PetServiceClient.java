@@ -55,4 +55,20 @@ public class PetServiceClient {
                         response -> Mono.error(new ClientException("Error fetching pet with ID: " + id)))
                 .bodyToMono(Pet.class);
     }
+
+    /**
+     * Fetches the pet ids by their specific owner.
+     *
+     * @param ownerId The ID of the owner.
+     * @return A Flux with the Pets IDs.
+     */
+    public Flux<Long> getPetIdsByOwnerId(Long ownerId) {
+        return webClient.get()
+                .uri("http://localhost:8080/pet/owner/" + ownerId) // Replace with the actual endpoint
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(),
+                        response -> Mono
+                                .error(new ClientException("Error fetching pets ids with owner ID: " + ownerId)))
+                .bodyToFlux(Long.class);
+    }
 }
