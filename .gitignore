@@ -32,5 +32,6 @@ build/
 ### VS Code ###
 .vscode/
 
-# Ignore output folder
-/output/
+# Ignore output folder and files inside it
+output/
+
