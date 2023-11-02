@@ -1,9 +1,13 @@
 package com.example.demo.client.config;
 
+import java.net.http.HttpClient;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.client.WebClient;
+
+import reactor.netty.resources.ConnectionProvider;
 
 /**
  * Configuration class responsible for creating and configuring the WebClient
@@ -28,6 +32,7 @@ public class WebClientConfig {
      */
     @Bean
     public WebClient webClient() {
+
         return WebClient.builder()
                 .baseUrl(serverBaseUrl)
                 // You can add filters, default headers, etc. here if needed

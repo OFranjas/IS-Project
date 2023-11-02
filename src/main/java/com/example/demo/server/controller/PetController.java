@@ -4,6 +4,7 @@ import com.example.demo.server.model.Pet;
 import com.example.demo.server.service.PetService;
 import com.example.demo.server.utils.LoggerUtil;
 
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -41,6 +42,19 @@ public class PetController {
     public Mono<Pet> getPetById(@PathVariable Long id) {
         LoggerUtil.info(this.getClass().getName(), "Got request: GET /pet/" + id);
         return petService.getPetById(id);
+    }
+
+    /**
+     * Retrieve a pet by its identifier with a 50% chance of simulated delay.
+     *
+     * @param id The identifier of the pet to retrieve.
+     * @return The pet with the specified identifier.
+     */
+    @GetMapping("/delay/{id}")
+    public Mono<Pet> getPetByIdWithDelay(@PathVariable Long id) {
+        LoggerUtil.info(this.getClass().getName(), "Got request: GET /pet/delay/" + id);
+
+        return petService.getPetByIdWithDelay(id);
     }
 
     /**

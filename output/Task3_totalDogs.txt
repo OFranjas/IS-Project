@@ -1,1 +1,1 @@
-Number of dogs: 5
+Number of dogs: 1536

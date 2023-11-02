@@ -66,6 +66,21 @@ public class PetService {
     }
 
     /**
+     * Retrieve a specific pet by its identifier with a simulated delay.
+     * If the pet is not found, an empty Mono is returned.
+     * 
+     * @param id The identifier of the pet to retrieve.
+     * @return A reactive stream (Mono) containing the pet or empty if not found.
+     */
+    public Mono<Pet> getPetByIdWithDelay(Long id) {
+
+        LoggerUtil.info(this.getClass().getName(), "Retrieving pet with id: " + id + " with delay");
+
+        return petRepository.findById(id).switchIfEmpty(Mono.empty())
+                .delayElement(java.time.Duration.ofSeconds(2));
+    }
+
+    /**
      * Update an existing pet in the database.
      * 
      * @param pet The pet entity with updated values.

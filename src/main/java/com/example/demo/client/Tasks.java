@@ -1,5 +1,6 @@
 package com.example.demo.client;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -17,13 +18,16 @@ import com.example.demo.client.utils.FileOutputUtil;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuples;
+import reactor.util.retry.Retry;
 
 public class Tasks {
 
-    private final WebClient webClient;
+    private final PetServiceClient petServiceClient;
+    private final OwnerServiceClient ownerServiceClient;
 
     public Tasks(WebClient webClient) {
-        this.webClient = webClient;
+        this.petServiceClient = new PetServiceClient(webClient);
+        this.ownerServiceClient = new OwnerServiceClient(webClient);
     }
 
     /**
@@ -34,9 +38,6 @@ public class Tasks {
     public Runnable OwnersNamesPhones() {
 
         return () -> {
-            // Create the service client
-            OwnerServiceClient ownerServiceClient = new OwnerServiceClient(webClient);
-
             // Define the file path
             String filePath = "Task1_ownersNamesPhones.txt";
 
@@ -61,6 +62,7 @@ public class Tasks {
                     .doOnComplete(() -> {
                         // Write the buffered owner details to the file
                         FileOutputUtil.writeToFile(filePath, ownerDetailsBuffer.toString());
+                        System.out.println("Task 1: ✅");
                     })
                     .subscribe(); // This will start the process
 
@@ -75,9 +77,6 @@ public class Tasks {
     public Runnable NumberOfPets() {
 
         return () -> {
-
-            // Create the service client
-            PetServiceClient petServiceClient = new PetServiceClient(webClient);
 
             // Define the file path
             String filePath = "Task2_totalPets.txt";
@@ -103,6 +102,7 @@ public class Tasks {
                     .doOnSuccess(count -> {
                         // Write the result to the file
                         FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
+                        System.out.println("Task 2: ✅");
                     })
                     .subscribe(); // This will start the process
         };
@@ -116,9 +116,6 @@ public class Tasks {
     public Runnable NumberOfDogs() {
 
         return () -> {
-            // Create the service client
-            PetServiceClient petServiceClient = new PetServiceClient(webClient);
-
             // Define the path
             String filePath = "Task3_totalDogs.txt";
 
@@ -144,6 +141,7 @@ public class Tasks {
                     .doOnSuccess(count -> {
                         // Write the result to the file upon successful completion
                         FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
+                        System.out.println("Task 3: ✅");
                     })
                     .subscribe(); // This will start the process
 
@@ -159,9 +157,6 @@ public class Tasks {
     public Runnable PetsSortedByWeight() {
 
         return () -> {
-
-            // Create the service client
-            PetServiceClient petServiceClient = new PetServiceClient(webClient);
 
             // Define the path
             String filePath = "Task4_sortedWeight.txt";
@@ -188,11 +183,10 @@ public class Tasks {
                     .doOnComplete(() -> {
                         // Write the pet details to the file upon completion
                         FileOutputUtil.writeToFile(filePath, petDetailsBuffer.toString());
+                        System.out.println("Task 4: ✅");
                     })
                     .subscribe(); // This will start the process
-
         };
-
     }
 
     /**
@@ -204,9 +198,6 @@ public class Tasks {
     public Runnable AverageAndStdDevOfWeights() {
 
         return () -> {
-
-            // Create the service client
-            PetServiceClient petServiceClient = new PetServiceClient(webClient);
 
             // Define the path
             String filePath = "Task5_stdDevWeights.txt";
@@ -260,6 +251,7 @@ public class Tasks {
                     .doOnSuccess(tuple -> {
                         // Write the results to the file when the operation completes successfully
                         FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
+                        System.out.println("Task 5: ✅");
                     })
                     .subscribe(); // This will start the process
 
@@ -275,9 +267,6 @@ public class Tasks {
     public Runnable NameOfEldestPet() {
 
         return () -> {
-
-            // Create the service client
-            PetServiceClient petServiceClient = new PetServiceClient(webClient);
 
             // Define the path
             String filePath = "Task6_eldestPet.txt";
@@ -300,6 +289,7 @@ public class Tasks {
                         // Handle the eldest pet here
                         resultBuffer.append("Name of the eldest pet: ").append(eldestPet.getName()).append("\n");
                         FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
+                        System.out.println("Task 6: ✅");
                     })
                     .doOnError(error -> {
                         // Handle errors if they occur
@@ -321,14 +311,13 @@ public class Tasks {
 
         return () -> {
 
-            // Create the service client
-            PetServiceClient petServiceClient = new PetServiceClient(webClient);
-
             // Define the path
             String filePath = "Task7_averagePetsOwner.txt";
 
             // Clear the file
             FileOutputUtil.clearFile(filePath);
+
+            StringBuilder resultBuffer = new StringBuilder();
 
             petServiceClient.getAllPets()
                     .reduce(new HashMap<Long, Long>(), (map, pet) -> {
@@ -350,8 +339,10 @@ public class Tasks {
                         return Mono.just(average);
                     })
                     .doOnSuccess(avg -> {
-                        String result = "Average number of pets per owner: " + avg;
-                        FileOutputUtil.writeToFile(filePath, result);
+                        resultBuffer.append("Average number of pets per owner: ").append(String.format("%.2f", avg))
+                                .append("\n");
+                        FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
+                        System.out.println("Task 7: ✅");
                     })
                     .doOnError(error -> {
                         // Handle errors if they occur
@@ -373,9 +364,6 @@ public class Tasks {
     public Runnable ownerNamesAndPetCountsSorted() {
 
         return () -> {
-            // Create the service clients
-            OwnerServiceClient ownerServiceClient = new OwnerServiceClient(webClient);
-            PetServiceClient petServiceClient = new PetServiceClient(webClient);
 
             // Define the path
             String filePath = "Task8_ownerNamesPetCountsSorted.txt";
@@ -388,8 +376,10 @@ public class Tasks {
             ownerServiceClient.getAllOwners()
                     .flatMap(owner -> petServiceClient.getPetIdsByOwnerId(owner.getIdentifier())
                             .count()
-                            .map(count -> Tuples.of(owner, count)))
+                            .map(count -> Tuples.of(owner, count)), 50)
                     .sort((tuple1, tuple2) -> Long.compare(tuple2.getT2(), tuple1.getT2())) // Sort by pet count
+                    .retryWhen(Retry.backoff(3, Duration.ofSeconds(1))
+                            .maxBackoff(Duration.ofSeconds(10)))
                     .doOnNext(tuple -> {
                         Owner owner = tuple.getT1();
                         long count = tuple.getT2();
@@ -402,6 +392,7 @@ public class Tasks {
                     })
                     .doOnComplete(() -> {
                         FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
+                        System.out.println("Task 8: ✅");
                     })
                     .subscribe();
 
@@ -419,10 +410,6 @@ public class Tasks {
 
         return () -> {
 
-            // Create the service clients
-            OwnerServiceClient ownerServiceClient = new OwnerServiceClient(webClient);
-            PetServiceClient petServiceClient = new PetServiceClient(webClient);
-
             // Define the path
             String filePath = "Task9_ownerNamesAndPetNamesSorted.txt";
 
@@ -435,14 +422,14 @@ public class Tasks {
             // Work the magic
             ownerServiceClient.getAllOwners()
                     .flatMap(owner -> petServiceClient.getPetIdsByOwnerId(owner.getIdentifier())
-                            .flatMap(petId -> petServiceClient.getPetById(petId).map(Pet::getName))
-                            .map(name -> Tuples.of(owner, name)))
-                    .groupBy(tuple -> tuple.getT1(), tuple -> tuple.getT2()) // Group by owner
-                    .flatMap(groupedFlux -> groupedFlux.reduce(new ArrayList<String>(), (list, name) -> {
-                        list.add(name);
-                        return list;
-                    }).map(names -> Tuples.of(groupedFlux.key(), names)))
+                            .flatMap(petId -> petServiceClient.getPetById(petId)
+                                    .map(Pet::getName), 5) // Adjusted concurrency limit for inner flatMap to avoid
+                                                           // system overload
+                            .collectList() // Collect pet names per owner
+                            .map(names -> Tuples.of(owner, names)), 5) // Also adjusted concurrency limit for system
+                                                                       // overload
                     .sort((tuple1, tuple2) -> Integer.compare(tuple2.getT2().size(), tuple1.getT2().size()))
+                    .retryWhen(Retry.backoff(3, Duration.ofSeconds(5)).maxBackoff(Duration.ofSeconds(20))) // Retry with
                     .doOnNext(tuple -> {
                         Owner owner = tuple.getT1();
                         List<String> petNames = tuple.getT2();
@@ -450,16 +437,51 @@ public class Tasks {
                                 .append(String.join(", ", petNames)).append("\n");
                     })
                     .doOnError(error -> {
-                        // Handle errors if they occur
                         System.err.println("Error fetching owner and pet details: " + error.getMessage());
                     })
                     .doOnComplete(() -> {
                         FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
+                        System.out.println("Task 9: ✅");
                     })
                     .subscribe();
-
         };
 
     }
 
+    /**
+     * Task to retrieve a pet by its identifier with retries and delay.
+     *
+     * @param webClient The WebClient instance for making the requests.
+     */
+    public Runnable taskGetPetByIdWithRetry() {
+        return () -> {
+
+            // Define the path
+            String filePath = "Task10_GetPetByIdWithRetry.txt";
+
+            // Clear the file
+            FileOutputUtil.clearFile(filePath);
+
+            // Create a buffer for the result string
+            StringBuilder resultBuffer = new StringBuilder();
+
+            // Generate random identifier
+            long randomId = (long) (Math.random() * 1000);
+
+            // Work the magic with retry
+            petServiceClient.getPetByIdWithRetry(randomId)
+                    .doOnNext(pet -> {
+                        resultBuffer.append("Pet Name: ").append(pet.getName()).append("\n");
+                    })
+                    .doOnError(error -> {
+                        // Handle errors if they occur
+                        System.err.println("Error fetching pet details: " + error.getMessage());
+                    })
+                    .doOnSuccess(pet -> {
+                        FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
+                        System.out.println("Task Delay: ✅");
+                    })
+                    .subscribe();
+        };
+    }
 }
