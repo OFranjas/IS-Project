@@ -61,8 +61,6 @@ public class ClientApplication {
 
     }
 
-    // Other methods...
-
     /**
      * Executes a client task function in a separate thread, prints a description of
      * the task.

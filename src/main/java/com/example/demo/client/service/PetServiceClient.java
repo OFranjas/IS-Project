@@ -7,9 +7,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import reactor.util.retry.Retry;
-import java.time.Duration;
-
 /**
  * Service class to interact with the Pet-related endpoints of the server.
  * Utilizes WebClient to make reactive HTTP calls.
@@ -60,7 +57,6 @@ public class PetServiceClient {
         }
 
         private static final int MAX_RETRIES = 3;
-        private static final Duration RETRY_DELAY = Duration.ofSeconds(5); // Adjust the delay as needed
 
         /**
          * Retrieve a pet by its identifier with retries and delay.
