@@ -2,6 +2,13 @@ package com.example.demo.client;
 
 import org.springframework.web.reactive.function.client.WebClient;
 import com.example.demo.client.config.WebClientConfig;
+import com.example.demo.client.service.OwnerServiceClient;
+import com.example.demo.client.service.PetServiceClient;
+import com.example.demo.server.model.Owner;
+import com.example.demo.server.model.Pet;
+
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -13,6 +20,12 @@ public class ClientApplication {
     private final WebClient webClient;
     private final Tasks tasks;
 
+    private Flux<Owner> allOwners;
+    private Flux<Pet> allPets;
+
+    private final PetServiceClient petServiceClient;
+    private final OwnerServiceClient ownerServiceClient;
+
     public static void main(String[] args) {
         ClientApplication app = new ClientApplication();
         app.run();
@@ -22,6 +35,10 @@ public class ClientApplication {
         WebClientConfig webClientConfig = new WebClientConfig();
         this.webClient = webClientConfig.webClient();
         this.tasks = new Tasks(webClient);
+        this.allOwners = webClient.get().uri("http://localhost:8080/owner").retrieve().bodyToFlux(Owner.class);
+        this.allPets = webClient.get().uri("http://localhost:8080/pet").retrieve().bodyToFlux(Pet.class);
+        this.petServiceClient = new PetServiceClient(webClient);
+        this.ownerServiceClient = new OwnerServiceClient(webClient);
     }
 
     /**
@@ -29,49 +46,24 @@ public class ClientApplication {
      * It initializes the web client and concurrently executes various tasks.
      */
     public void run() {
-        System.out.println("ClientApplication started successfully.");
 
-        // Create an ExecutorService with a fixed number of threads (e.g., 5)
-        ExecutorService executor = Executors.newFixedThreadPool(5);
+        // Combine all tasks into a single Mono
+        Mono<Void> combinedTasks = Mono.when(
+                tasks.ownersNamesPhones(this.allOwners).then(),
+                tasks.numberOfPets(this.allPets).then(),
+                tasks.numberOfDogs(this.allPets).then(),
+                tasks.petsSortedByWeight(this.allPets).then(),
+                tasks.averageAndStdDevOfWeights(this.allPets).then(),
+                tasks.nameOfEldestPet(this.allPets).then(),
+                tasks.averagePetsPerOwner(this.allPets).then(),
+                tasks.ownerNamesAndPetCountsSorted(this.allOwners, this.petServiceClient).then(),
+                tasks.ownerNamesAndPetNamesForTask9(this.allOwners, this.petServiceClient).then(),
+                tasks.taskGetPetByIdWithRetry(this.allPets, this.petServiceClient));
 
-        // Create a CountDownLatch with the number of tasks to wait for
-        CountDownLatch latch = new CountDownLatch(10); // Adjust to the number of tasks
+        // Subscribe to the Mono and wait for it to complete before exiting
+        combinedTasks.doOnTerminate(() -> {
 
-        // Execute various tasks concurrently
-        executeTaskInThread(executor, tasks.OwnersNamesPhones());
-        executeTaskInThread(executor, tasks.NumberOfPets());
-        executeTaskInThread(executor, tasks.NumberOfDogs());
-        executeTaskInThread(executor, tasks.PetsSortedByWeight());
-        executeTaskInThread(executor, tasks.AverageAndStdDevOfWeights());
-        executeTaskInThread(executor, tasks.NameOfEldestPet());
-        executeTaskInThread(executor, tasks.averagePetsPerOwner());
-        executeTaskInThread(executor, tasks.ownerNamesAndPetCountsSorted());
-        executeTaskInThread(executor, tasks.ownerNamesAndPetNamesForTask9());
-        executeTaskInThread(executor, tasks.taskGetPetByIdWithRetry());
+        }).block(); // Block until all tasks are complete
 
-        // Wait for all tasks to complete
-        try {
-            latch.await(3, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        // Shutdown the executor when all tasks are submitted
-        executor.shutdown();
-
-    }
-
-    /**
-     * Executes a client task function in a separate thread, prints a description of
-     * the task.
-     *
-     * @param executor        The ExecutorService for task execution.
-     * @param taskFunction    The task function to be executed.
-     * @param taskDescription The description of the task to be printed.
-     */
-    private void executeTaskInThread(ExecutorService executor, Runnable taskFunction) {
-        executor.execute(() -> {
-            taskFunction.run();
-        });
     }
 }

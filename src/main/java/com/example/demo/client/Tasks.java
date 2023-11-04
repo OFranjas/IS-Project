@@ -1,10 +1,13 @@
 package com.example.demo.client;
 
 import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -16,17 +19,14 @@ import com.example.demo.client.utils.FileOutputUtil;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import reactor.util.function.Tuples;
 import reactor.util.retry.Retry;
 
 public class Tasks {
 
-    private final PetServiceClient petServiceClient;
-    private final OwnerServiceClient ownerServiceClient;
-
     public Tasks(WebClient webClient) {
-        this.petServiceClient = new PetServiceClient(webClient);
-        this.ownerServiceClient = new OwnerServiceClient(webClient);
+
     }
 
     /**
@@ -34,38 +34,38 @@ public class Tasks {
      * 
      * @param webClient The configured WebClient instance.
      */
-    public Runnable OwnersNamesPhones() {
+    public Mono<Void> ownersNamesPhones(Flux<Owner> allOwners) {
+        // Define the file path
+        String filePath = "Task1_ownersNamesPhones.txt";
 
-        return () -> {
-            // Define the file path
-            String filePath = "Task1_ownersNamesPhones.txt";
+        // Clear the file
+        FileOutputUtil.clearFile(filePath);
 
-            // Clear the file
-            FileOutputUtil.clearFile(filePath);
+        // Create a StringBuilder to buffer the owner details
+        StringBuilder ownerDetailsBuffer = new StringBuilder();
 
-            // Create a StringBuilder to buffer the owner details
-            StringBuilder ownerDetailsBuffer = new StringBuilder();
+        // Start the timer
+        Instant start = Instant.now();
 
-            // Subscribe to getAllOwners
-            ownerServiceClient.getAllOwners()
-                    .doOnNext(owner -> {
-                        // Handle each received owner here
-                        String ownerDetails = "Owner Name: " + owner.getName() + " -> phone number: "
-                                + owner.getPhone_number();
-                        ownerDetailsBuffer.append(ownerDetails).append("\n"); // Append to the buffer with a newline
-                    })
-                    .doOnError(error -> {
-                        // Handle errors if they occur
-                        System.err.println("Error fetching owners: " + error.getMessage());
-                    })
-                    .doOnComplete(() -> {
-                        // Write the buffered owner details to the file
-                        FileOutputUtil.writeToFile(filePath, ownerDetailsBuffer.toString());
-                        System.out.println("Task 1: ✅");
-                    })
-                    .subscribe(); // This will start the process
-
-        };
+        // Use a copy of allOwners to avoid multiple subscriptions
+        return allOwners
+                .doOnNext(owner -> {
+                    // Handle each received owner here
+                    String ownerDetails = "Owner Name: " + owner.getName() + " -> phone number: "
+                            + owner.getPhone_number();
+                    ownerDetailsBuffer.append(ownerDetails).append("\n"); // Append to the buffer with a newline
+                })
+                .then() // Ignore element emission and only react on completion signal
+                .doOnError(error -> {
+                    // Handle errors if they occur
+                    System.err.println("Error fetching owners: " + error.getMessage());
+                })
+                .doOnSuccess(aVoid -> {
+                    // Write the buffered owner details to the file
+                    FileOutputUtil.writeToFile(filePath, ownerDetailsBuffer.toString());
+                    Duration duration = Duration.between(start, Instant.now());
+                    System.out.println("Task 1: ✅ -> " + duration.toMillis() + " ms");
+                });
     }
 
     /**
@@ -73,38 +73,40 @@ public class Tasks {
      * 
      * @param webClient The configured WebClient instance.
      */
-    public Runnable NumberOfPets() {
+    public Mono<Void> numberOfPets(Flux<Pet> allPets) {
 
-        return () -> {
+        // Define the file path
+        String filePath = "Task2_totalPets.txt";
 
-            // Define the file path
-            String filePath = "Task2_totalPets.txt";
+        // Clear the file
+        FileOutputUtil.clearFile(filePath);
 
-            // Clear the file
-            FileOutputUtil.clearFile(filePath);
+        // Create a buffer for the result string
+        StringBuilder resultBuffer = new StringBuilder();
 
-            // Create a buffer for the result string
-            StringBuilder resultBuffer = new StringBuilder();
+        // Start the timer
+        Instant start = Instant.now();
 
-            // Subscribe to getAllPets and count the pets
-            petServiceClient.getAllPets()
-                    .count() // This returns a Mono<Long> with the count of pets
-                    .doOnNext(count -> {
-                        // Handle the received pet count here
-                        String petCount = "Total number of pets: " + count;
-                        resultBuffer.append(petCount); // Store the result in the buffer
-                    })
-                    .doOnError(error -> {
-                        // Handle errors if they occur
-                        System.err.println("Error fetching pet count: " + error.getMessage());
-                    })
-                    .doOnSuccess(count -> {
-                        // Write the result to the file
-                        FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
-                        System.out.println("Task 2: ✅");
-                    })
-                    .subscribe(); // This will start the process
-        };
+        // Chain the operations and return a Mono<Void> that represents the completion
+        // of this task
+        return allPets
+                .count() // This returns a Mono<Long> with the count of pets
+                .doOnNext(count -> {
+                    // Handle the received pet count here
+                    String petCount = "Total number of pets: " + count;
+                    resultBuffer.append(petCount); // Store the result in the buffer
+                })
+                .doOnError(error -> {
+                    // Handle errors if they occur
+                    System.err.println("Error fetching pet count: " + error.getMessage());
+                })
+                .then() // Use then to return a Mono<Void> after the operation completes
+                .doOnSuccess(aVoid -> {
+                    // Write the result to the file
+                    FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
+                    Duration duration = Duration.between(start, Instant.now());
+                    System.out.println("Task 2: ✅ -> " + duration.toMillis() + " ms");
+                });
     }
 
     /**
@@ -112,40 +114,40 @@ public class Tasks {
      * 
      * @param webClient The configured WebClient instance.
      */
-    public Runnable NumberOfDogs() {
+    public Mono<Void> numberOfDogs(Flux<Pet> allPets) {
+        // Define the path
+        String filePath = "Task3_totalDogs.txt";
 
-        return () -> {
-            // Define the path
-            String filePath = "Task3_totalDogs.txt";
+        // Clear the file
+        FileOutputUtil.clearFile(filePath);
 
-            // Clear the file
-            FileOutputUtil.clearFile(filePath);
+        // Create a buffer for the result string
+        StringBuilder resultBuffer = new StringBuilder();
 
-            // Create a buffer for the result string
-            StringBuilder resultBuffer = new StringBuilder();
+        // Start the timer
+        Instant start = Instant.now();
 
-            // Subscribe to pets with species "dog" and count them
-            petServiceClient.getAllPets()
-                    .filter(pet -> "dog".equalsIgnoreCase(pet.getSpecies()))
-                    .count() // This returns a Mono<Long> with the count of dogs
-                    .doOnNext(count -> {
-                        // Handle the count here
-                        String dogCount = "Number of dogs: " + count;
-                        resultBuffer.append(dogCount); // Store the result in the buffer
-                    })
-                    .doOnError(error -> {
-                        // Handle errors if they occur
-                        System.err.println("Error fetching number of dogs: " + error.getMessage());
-                    })
-                    .doOnSuccess(count -> {
-                        // Write the result to the file upon successful completion
-                        FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
-                        System.out.println("Task 3: ✅");
-                    })
-                    .subscribe(); // This will start the process
+        // Return a Mono<Void> that represents the completion of counting dogs
+        return allPets
+                .filter(pet -> "dog".equalsIgnoreCase(pet.getSpecies()))
+                .count() // This returns a Mono<Long> with the count of dogs
+                .doOnNext(count -> {
+                    // Handle the count here
+                    String dogCount = "Number of dogs: " + count;
+                    resultBuffer.append(dogCount); // Store the result in the buffer
+                })
+                .doOnError(error -> {
+                    // Handle errors if they occur
+                    System.err.println("Error fetching number of dogs: " + error.getMessage());
+                })
+                .then() // Use then to return a Mono<Void> after the operation completes
+                .doOnSuccess(aVoid -> {
+                    // Write the result to the file upon successful completion
+                    FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
 
-        };
-
+                    Duration duration = Duration.between(start, Instant.now());
+                    System.out.println("Task 3: ✅ -> " + duration.toMillis() + " ms");
+                });
     }
 
     /**
@@ -153,39 +155,42 @@ public class Tasks {
      * 
      * @param webClient The configured WebClient instance.
      */
-    public Runnable PetsSortedByWeight() {
+    public Mono<Pet> petsSortedByWeight(Flux<Pet> allPets) {
+        // Define the path
+        String filePath = "Task4_sortedWeight.txt";
 
-        return () -> {
+        // Clear the file
+        FileOutputUtil.clearFile(filePath);
 
-            // Define the path
-            String filePath = "Task4_sortedWeight.txt";
+        // Create a buffer to store pets' details
+        StringBuilder petDetailsBuffer = new StringBuilder();
 
-            // Clear the file
-            FileOutputUtil.clearFile(filePath);
+        // Start the timer
+        Instant start = Instant.now();
 
-            // Create a buffer to store pets' details
-            StringBuilder petDetailsBuffer = new StringBuilder();
-
-            // Subscribe to getAllPets, filter, and process them
-            petServiceClient.getAllPets()
-                    .filter(pet -> pet.getWeight() > 10) // Only keep pets with weight greater than 10
-                    .sort(Comparator.comparingDouble(Pet::getWeight)) // Sort the pets by weight
-                    .doOnNext(pet -> {
-                        // Append each pet's details to the buffer
-                        String petDetails = "Pet Name: " + pet.getName() + " -> weight: " + pet.getWeight() + "\n";
-                        petDetailsBuffer.append(petDetails);
-                    })
-                    .doOnError(error -> {
-                        // Handle errors if they occur
-                        System.err.println("Error fetching pets: " + error.getMessage());
-                    })
-                    .doOnComplete(() -> {
-                        // Write the pet details to the file upon completion
-                        FileOutputUtil.writeToFile(filePath, petDetailsBuffer.toString());
-                        System.out.println("Task 4: ✅");
-                    })
-                    .subscribe(); // This will start the process
-        };
+        // Process the allPets flux
+        return allPets
+                .filter(pet -> pet.getWeight() > 10) // Only keep pets with weight greater than 10
+                .sort(Comparator.comparingDouble(Pet::getWeight)) // Sort the pets by weight
+                .doOnNext(pet -> {
+                    // Append each pet's details to the buffer
+                    String petDetails = "Pet Name: " + pet.getName() + " -> weight: " + pet.getWeight() + "\n";
+                    petDetailsBuffer.append(petDetails);
+                })
+                .doOnComplete(() -> {
+                    // Write the pet details to the file upon completion
+                    FileOutputUtil.writeToFile(filePath, petDetailsBuffer.toString());
+                })
+                .doOnError(error -> {
+                    // Handle errors if they occur
+                    System.err.println("Error fetching pets: " + error.getMessage());
+                })
+                .doFinally(signalType -> {
+                    // This is executed after error or completion to log the time
+                    Duration duration = Duration.between(start, Instant.now());
+                    System.out.println("Task 4: ✅ -> " + duration.toMillis() + " ms");
+                })
+                .last(); // Return the last pet in the sorted list as a Mono<Pet>
     }
 
     /**
@@ -194,68 +199,62 @@ public class Tasks {
      * 
      * @param webClient The configured WebClient instance.
      */
-    public Runnable AverageAndStdDevOfWeights() {
+    public Mono<Void> averageAndStdDevOfWeights(Flux<Pet> allPets) {
+        // Define the path
+        String filePath = "Task5_stdDevWeights.txt";
 
-        return () -> {
+        // Clear the file
+        FileOutputUtil.clearFile(filePath);
 
-            // Define the path
-            String filePath = "Task5_stdDevWeights.txt";
+        StringBuilder resultBuffer = new StringBuilder();
 
-            // Clear the file
-            FileOutputUtil.clearFile(filePath);
+        // Start the timer
+        Instant start = Instant.now();
 
-            // Create a buffer to store the results
-            StringBuilder resultBuffer = new StringBuilder();
+        // Calculate sum of weights
+        Mono<Double> sumMono = allPets.map(Pet::getWeight)
+                .reduce((Double) 0.0, Double::sum);
 
-            // ? Cache the result of getAllPets() so we call it only once
-            Flux<Pet> cachedPets = petServiceClient.getAllPets().cache();
+        // Calculate sum of squares of weights
+        Mono<Double> sumOfSquaresMono = allPets.map(pet -> Math.pow(pet.getWeight(), 2))
+                .reduce((Double) 0.0, Double::sum);
 
-            // Calculate sum of weights
-            Mono<Double> sumMono = cachedPets
-                    .map(Pet::getWeight)
-                    .reduce(0.0, (acc, value) -> acc + value);
+        // Count the pets
+        Mono<Long> countMono = allPets.count();
 
-            // Calculate sum of squares of weights
-            Mono<Double> sumOfSquaresMono = cachedPets
-                    .map(pet -> pet.getWeight() * pet.getWeight())
-                    .reduce(0.0, (acc, value) -> acc + value);
+        // Combine the results and calculate average and standard deviation
+        return Mono.zip(sumMono, sumOfSquaresMono, countMono)
+                .flatMap(tuple -> {
+                    double sum = tuple.getT1();
+                    double sumOfSquares = tuple.getT2();
+                    long count = tuple.getT3();
 
-            // Count the pets
-            Mono<Long> countMono = cachedPets.count();
+                    if (count > 0) {
+                        double average = sum / count;
+                        double variance = (sumOfSquares / count) - (average * average);
+                        double stdDev = Math.sqrt(variance);
 
-            // Combine the results and calculate average and standard deviation
-            Mono.zip(sumMono, sumOfSquaresMono, countMono)
-                    .doOnNext(tuple -> {
-                        double sum = tuple.getT1();
-                        double sumOfSquares = tuple.getT2();
-                        long count = tuple.getT3();
-
-                        if (count > 0) {
-                            double average = sum / count;
-                            double variance = (sumOfSquares / count) - (average * average);
-                            double stdDev = Math.sqrt(variance);
-
-                            resultBuffer.append("Average Weight: ").append(String.format("%.2f", average)).append("\n");
-                            resultBuffer.append("Standard Deviation: ").append(String.format("%.2f", stdDev))
-                                    .append("\n");
-
-                        } else {
-                            resultBuffer.append("No pets found.\n");
-                        }
-                    })
-                    .doOnError(error -> {
-                        // Handle errors if they occur
-                        System.err.println("Error calculating weights: " + error.getMessage());
-                    })
-                    .doOnSuccess(tuple -> {
-                        // Write the results to the file when the operation completes successfully
-                        FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
-                        System.out.println("Task 5: ✅");
-                    })
-                    .subscribe(); // This will start the process
-
-        };
-
+                        resultBuffer.append("Average Weight: ").append(String.format("%.2f", average)).append("\n");
+                        resultBuffer.append("Standard Deviation: ").append(String.format("%.2f", stdDev)).append("\n");
+                    } else {
+                        return Mono.error(new IllegalStateException("No pets found."));
+                    }
+                    // No need to return anything as the next step is doOnSuccess
+                    return Mono.empty();
+                })
+                .doOnSuccess(aVoid -> {
+                    // This executes if the above flatMap completes without emitting an error
+                    FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
+                })
+                .doOnError(error -> {
+                    // Handle errors if they occur
+                    System.err.println("Error calculating weights: " + error.getMessage());
+                })
+                .doFinally(signalType -> {
+                    Duration duration = Duration.between(start, Instant.now());
+                    System.out.println("Task 5: ✅ -> " + duration.toMillis() + " ms");
+                })
+                .then(); // Return an empty Mono<Void> to complete the chain
     }
 
     /**
@@ -263,41 +262,36 @@ public class Tasks {
      *
      * @param webClient The WebClient to use for making requests.
      */
-    public Runnable NameOfEldestPet() {
+    public Mono<Void> nameOfEldestPet(Flux<Pet> allPets) {
+        // Define the path
+        String filePath = "Task6_eldestPet.txt";
+        StringBuilder resultBuffer = new StringBuilder();
 
-        return () -> {
+        FileOutputUtil.clearFile(filePath);
 
-            // Define the path
-            String filePath = "Task6_eldestPet.txt";
+        // Start the timer
+        Instant start = Instant.now();
 
-            // Clear the file
-            FileOutputUtil.clearFile(filePath);
-
-            StringBuilder resultBuffer = new StringBuilder();
-
-            // Find the eldest pet by comparing birth dates
-            petServiceClient.getAllPets()
-                    .reduce((pet1, pet2) -> {
-                        if (pet1.getBirth_date().isBefore(pet2.getBirth_date())) {
-                            return pet1;
-                        } else {
-                            return pet2;
-                        }
-                    })
-                    .doOnSuccess(eldestPet -> {
-                        // Handle the eldest pet here
+        // Find the eldest pet by comparing birth dates
+        return allPets
+                .reduce((pet1, pet2) -> pet1.getBirth_date().isBefore(pet2.getBirth_date()) ? pet1 : pet2)
+                .doOnError(error -> {
+                    // Handle errors if they occur
+                    System.err.println("Error fetching pets: " + error.getMessage());
+                })
+                .doOnSuccess(eldestPet -> {
+                    // Handle the eldest pet here (if there is one)
+                    if (eldestPet != null) {
                         resultBuffer.append("Name of the eldest pet: ").append(eldestPet.getName()).append("\n");
                         FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
-                        System.out.println("Task 6: ✅");
-                    })
-                    .doOnError(error -> {
-                        // Handle errors if they occur
-                        System.err.println("Error fetching pets: " + error.getMessage());
-                    })
-                    .subscribe();
+                    }
+                })
+                .doFinally(signalType -> {
 
-        };
-
+                    Duration duration = Duration.between(start, Instant.now());
+                    System.out.println("Task 6: ✅ -> " + duration.toMillis() + " ms");
+                })
+                .then(); // Return an empty Mono<Void> to complete the chain
     }
 
     /***
@@ -306,51 +300,42 @@ public class Tasks {
      * 
      * @param webClient The WebClient to use for making requests.
      */
-    public Runnable averagePetsPerOwner() {
+    public Mono<Void> averagePetsPerOwner(Flux<Pet> allPets) {
+        // Define the path
+        String filePath = "Task7_averagePetsOwner.txt";
+        StringBuilder resultBuffer = new StringBuilder();
 
-        return () -> {
+        // CLEAR THE FILE
+        FileOutputUtil.clearFile(filePath);
 
-            // Define the path
-            String filePath = "Task7_averagePetsOwner.txt";
+        // Start the timer
+        Instant start = Instant.now();
 
-            // Clear the file
-            FileOutputUtil.clearFile(filePath);
+        return allPets
+                .collect(
+                        // Use a collector to aggregate the counts into a map
+                        HashMap<Long, Long>::new,
+                        (map, pet) -> map.merge(pet.getOwnerid(), 1L, (existing, increment) -> existing + increment))
+                .flatMap(map -> {
+                    long totalPets = map.values().stream().mapToLong(Long::longValue).sum();
+                    long totalOwners = map.size();
 
-            StringBuilder resultBuffer = new StringBuilder();
+                    double average = totalOwners == 0 ? 0 : (double) totalPets / totalOwners;
+                    resultBuffer.append("Average number of pets per owner: ").append(String.format("%.2f", average))
+                            .append("\n");
 
-            petServiceClient.getAllPets()
-                    .reduce(new HashMap<Long, Long>(), (map, pet) -> {
-                        map.put(pet.getOwnerid(), map.getOrDefault(pet.getOwnerid(), 0L) + 1);
-                        return map;
-                    }) // Aggregate pets count per owner in a map
-                    .flatMap(map -> {
-                        long totalPets = 0;
-                        long totalOwners = 0;
-
-                        for (Map.Entry<Long, Long> entry : map.entrySet()) {
-                            if (entry.getValue() > 1) {
-                                totalPets += entry.getValue();
-                                totalOwners++;
-                            }
-                        }
-
-                        double average = totalOwners == 0 ? 0 : (double) totalPets / totalOwners;
-                        return Mono.just(average);
-                    })
-                    .doOnSuccess(avg -> {
-                        resultBuffer.append("Average number of pets per owner: ").append(String.format("%.2f", avg))
-                                .append("\n");
-                        FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
-                        System.out.println("Task 7: ✅");
-                    })
-                    .doOnError(error -> {
-                        // Handle errors if they occur
-                        System.err.println("Error computing average: " + error.getMessage());
-                    })
-                    .subscribe();
-
-        };
-
+                    return Mono.just(resultBuffer.toString());
+                })
+                .doOnSuccess(content -> FileOutputUtil.writeToFile(filePath, resultBuffer.toString()))
+                .doOnError(error -> {
+                    // Handle errors if they occur
+                    System.err.println("Error computing average: " + error.getMessage());
+                })
+                .doFinally(signalType -> {
+                    Duration duration = Duration.between(start, Instant.now());
+                    System.out.println("Task 7: ✅ -> " + duration.toMillis() + " ms");
+                })
+                .then(); // Return an empty Mono<Void> to complete the chain
     }
 
     /**
@@ -360,43 +345,46 @@ public class Tasks {
      * 
      * @param webClient The WebClient to use for making requests.
      */
-    public Runnable ownerNamesAndPetCountsSorted() {
+    public Mono<Void> ownerNamesAndPetCountsSorted(Flux<Owner> allOwners, PetServiceClient petServiceClient) {
+        // Define the path
+        String filePath = "Task8_ownerNamesPetCountsSorted.txt";
 
-        return () -> {
+        // Clear the file
+        FileOutputUtil.clearFile(filePath);
 
-            // Define the path
-            String filePath = "Task8_ownerNamesPetCountsSorted.txt";
+        StringBuilder resultBuffer = new StringBuilder();
 
-            // Clear the file
-            FileOutputUtil.clearFile(filePath);
+        // Start the timer
+        Instant start = Instant.now();
 
-            StringBuilder resultBuffer = new StringBuilder();
-
-            ownerServiceClient.getAllOwners()
-                    .flatMap(owner -> petServiceClient.getPetIdsByOwnerId(owner.getIdentifier())
-                            .count()
-                            .map(count -> Tuples.of(owner, count)), 50)
-                    .sort((tuple1, tuple2) -> Long.compare(tuple2.getT2(), tuple1.getT2())) // Sort by pet count
-                    .retryWhen(Retry.backoff(3, Duration.ofSeconds(1))
-                            .maxBackoff(Duration.ofSeconds(10)))
-                    .doOnNext(tuple -> {
-                        Owner owner = tuple.getT1();
-                        long count = tuple.getT2();
-                        resultBuffer.append("Owner Name: ").append(owner.getName()).append(" -> Number of Pets: ")
-                                .append(count).append("\n");
-                    })
-                    .doOnError(error -> {
-                        // Handle errors if they occur
-                        System.err.println("Error fetching owner and pet details: " + error.getMessage());
-                    })
-                    .doOnComplete(() -> {
-                        FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
-                        System.out.println("Task 8: ✅");
-                    })
-                    .subscribe();
-
-        };
-
+        return allOwners
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMap(owner -> petServiceClient.getPetIdsByOwnerId(owner.getIdentifier())
+                        .count()
+                        .map(count -> Tuples.of(owner, count))
+                        .subscribeOn(Schedulers.boundedElastic()))
+                .sort((tuple1, tuple2) -> Long.compare(tuple2.getT2(), tuple1.getT2())) // Sort by pet count
+                .retryWhen(Retry.backoff(3, Duration.ofSeconds(1)).maxBackoff(Duration.ofSeconds(10)))
+                .doOnNext(tuple -> {
+                    // Process each tuple and append the results to the buffer
+                    Owner owner = tuple.getT1();
+                    long count = tuple.getT2();
+                    resultBuffer.append("Owner Name: ").append(owner.getName()).append(" -> Number of Pets: ")
+                            .append(count).append("\n");
+                })
+                .doOnError(error -> {
+                    System.err.println("Error fetching owner and pet details: " + error.getMessage());
+                })
+                .doOnComplete(() -> {
+                    // Once all the data is collected, write it to the file.
+                    FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
+                })
+                .doFinally(signalType -> {
+                    // When the flux completes, calculate the duration and print it.
+                    Duration duration = Duration.between(start, Instant.now());
+                    System.out.println("Task 8: ✅ -> " + duration.toMillis() + " ms");
+                })
+                .then(); // Complete the Mono<Void> chain.
     }
 
     /**
@@ -405,45 +393,48 @@ public class Tasks {
      *
      * @param webClient The WebClient instance for making the requests.
      */
-    public Runnable ownerNamesAndPetNamesForTask9() {
+    public Mono<Void> ownerNamesAndPetNamesForTask9(Flux<Owner> allOwners, PetServiceClient petServiceClient) {
 
-        return () -> {
+        // Define the path
+        String filePath = "Task9_ownerNamesAndPetNamesSorted.txt";
 
-            // Define the path
-            String filePath = "Task9_ownerNamesAndPetNamesSorted.txt";
+        // Clear the file
+        FileOutputUtil.clearFile(filePath);
 
-            // Clear the file
-            FileOutputUtil.clearFile(filePath);
+        // Create a buffer for the result string
+        StringBuilder resultBuffer = new StringBuilder();
 
-            // Create a buffer for the result string
-            StringBuilder resultBuffer = new StringBuilder();
+        // Start the timer
+        Instant start = Instant.now();
 
-            // Work the magic
-            ownerServiceClient.getAllOwners()
-                    .flatMap(owner -> petServiceClient.getPetIdsByOwnerId(owner.getIdentifier())
-                            .flatMap(petId -> petServiceClient.getPetById(petId)
-                                    .map(Pet::getName), 5) // Adjusted concurrency limit for inner flatMap to avoid
-                                                           // system overload
-                            .collectList() // Collect pet names per owner
-                            .map(names -> Tuples.of(owner, names)), 5) // Also adjusted concurrency limit for system
-                                                                       // overload
-                    .sort((tuple1, tuple2) -> Integer.compare(tuple2.getT2().size(), tuple1.getT2().size()))
-                    .retryWhen(Retry.backoff(3, Duration.ofSeconds(5)).maxBackoff(Duration.ofSeconds(20))) // Retry with
-                    .doOnNext(tuple -> {
-                        Owner owner = tuple.getT1();
-                        List<String> petNames = tuple.getT2();
-                        resultBuffer.append("Owner Name: ").append(owner.getName()).append(" -> Pets: ")
-                                .append(String.join(", ", petNames)).append("\n");
-                    })
-                    .doOnError(error -> {
-                        System.err.println("Error fetching owner and pet details: " + error.getMessage());
-                    })
-                    .doOnComplete(() -> {
-                        FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
-                        System.out.println("Task 9: ✅");
-                    })
-                    .subscribe();
-        };
+        // Begin processing
+        return allOwners
+                .flatMapSequential(owner -> petServiceClient.getPetIdsByOwnerId(owner.getIdentifier())
+                        .flatMapSequential(petId -> petServiceClient.getPetById(petId), 10) // Adjusted concurrency
+                        .map(Pet::getName) // Extract pet names
+                        .collectList() // Collect pet names per owner into a List<String>
+                        .map(names -> Tuples.of(owner, names)), 10) // Create a tuple of owner and List<String>
+                .sort((tuple1, tuple2) -> Integer.compare(tuple2.getT2().size(), tuple1.getT2().size()))
+                .retryWhen(Retry.backoff(3, Duration.ofSeconds(5)).maxBackoff(Duration.ofSeconds(20)))
+                .doOnNext(tuple -> {
+                    Owner owner = tuple.getT1();
+                    List<String> petNames = tuple.getT2();
+                    resultBuffer.append("Owner Name: ").append(owner.getName()).append(" -> Pets: ")
+                            .append(String.join(", ", petNames)).append("\n");
+                })
+                .doOnError(error -> {
+                    System.err.println("Error fetching owner and pet details: " + error.getMessage());
+                })
+                .doOnComplete(() -> {
+                    // Once all the data is collected, write it to the file.
+                    FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
+                })
+                .doFinally(signalType -> {
+                    // When the flux completes, calculate the duration and print it.
+                    Duration duration = Duration.between(start, Instant.now());
+                    System.out.println("Task 9: ✅ -> " + duration.toMillis() + " ms");
+                })
+                .then(); // Signal completion without emitting any elements
 
     }
 
@@ -452,8 +443,8 @@ public class Tasks {
      *
      * @param webClient The WebClient instance for making the requests.
      */
-    public Runnable taskGetPetByIdWithRetry() {
-        return () -> {
+    public Mono<Void> taskGetPetByIdWithRetry(Flux<Pet> AllPets, PetServiceClient petServiceClient) {
+        return Mono.fromRunnable(() -> {
 
             // Define the path
             String filePath = "Task10_GetPetByIdWithRetry.txt";
@@ -461,15 +452,19 @@ public class Tasks {
             // Clear the file
             FileOutputUtil.clearFile(filePath);
 
+            // Generate random pet identifier from allPets
+            long randomId = AllPets.map(Pet::getIdentifier).collectList().block().get(0);
+
             // Create a buffer for the result string
             StringBuilder resultBuffer = new StringBuilder();
 
-            // Generate random identifier
-            long randomId = (long) (Math.random() * 1000);
+            // Start the timer
+            Instant start = Instant.now();
 
             // Work the magic with retry
             petServiceClient.getPetByIdWithRetry(randomId)
                     .doOnNext(pet -> {
+                        // Add pet details to the buffer
                         resultBuffer.append("Pet Name: ").append(pet.getName()).append("\n");
                     })
                     .doOnError(error -> {
@@ -477,10 +472,17 @@ public class Tasks {
                         System.err.println("Error fetching pet details: " + error.getMessage());
                     })
                     .doOnSuccess(pet -> {
+                        // On success, write the buffer to the file
                         FileOutputUtil.writeToFile(filePath, resultBuffer.toString());
-                        System.out.println("Task Delay: ✅");
+                    })
+                    .doFinally(signalType -> {
+                        // On termination, successful or not, print the duration
+                        Duration duration = Duration.between(start, Instant.now());
+                        System.out.println("Task Delay: ✅ -> " + duration.toMillis() + " ms");
                     })
                     .subscribe();
-        };
+
+        }).then(); // then() converts this to Mono<Void>, completing after the Runnable
     }
+
 }

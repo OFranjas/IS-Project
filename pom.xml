@@ -41,6 +41,11 @@
 			<artifactId>reactor-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+    		<groupId>io.projectreactor</groupId>
+    		<artifactId>reactor-core</artifactId>
+    		<version>3.5.11</version>
+		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.postgresql/r2dbc-postgresql -->
 		<dependency>
 			<groupId>org.postgresql</groupId>
