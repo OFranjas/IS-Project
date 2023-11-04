@@ -3,8 +3,9 @@ package com.example.demo.server.service;
 import com.example.demo.server.model.Owner;
 import com.example.demo.server.repository.OwnerRepository;
 import com.example.demo.server.repository.PetRepository;
-import com.example.demo.server.utils.LoggerUtil;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -21,6 +22,8 @@ import reactor.core.publisher.Mono;
  */
 @Service
 public class OwnerService {
+
+    private static final Logger logger = LoggerFactory.getLogger(OwnerService.class);
 
     private final OwnerRepository ownerRepository;
     private final PetRepository petRepository;
@@ -40,9 +43,12 @@ public class OwnerService {
         // Ensure the ID is null to indicate an insert operation
         owner.setIdentifier(null);
 
-        LoggerUtil.info(this.getClass().getName(), "Creating owner with name: " + owner.getName());
+        logger.info("Creating owner with name: " + owner.getName());
 
-        return ownerRepository.save(owner);
+        return ownerRepository.save(owner).onErrorResume(e -> {
+            logger.error("Error creating owner with name: " + owner.getName(), e);
+            return Mono.error(e);
+        });
     }
 
     /**
@@ -52,9 +58,13 @@ public class OwnerService {
      */
     public Flux<Owner> getAllOwners() {
 
-        LoggerUtil.info(this.getClass().getName(), "Retrieving all owners");
+        logger.info("Retrieving all owners");
 
-        return ownerRepository.findAll();
+        return ownerRepository.findAll()
+                .onErrorResume(e -> {
+                    logger.error("Error retrieving all owners", e);
+                    return Flux.error(e);
+                });
     }
 
     /**
@@ -64,10 +74,19 @@ public class OwnerService {
      * @return A reactive stream (Mono) containing the owner or empty if not found.
      */
     public Mono<Owner> getOwnerById(Long id) {
+        logger.info("Retrieving owner with id: " + id);
 
-        LoggerUtil.info(this.getClass().getName(), "Retrieving owner with id: " + id);
-
-        return ownerRepository.findById(id).switchIfEmpty(Mono.empty());
+        return ownerRepository.findById(id)
+                .switchIfEmpty(Mono.defer(() -> {
+                    // Log a warning when no owner with the given id is found
+                    logger.warn("No owner found with id: " + id);
+                    return Mono.empty();
+                }))
+                .onErrorResume(e -> {
+                    // Log an error when an error occurs during retrieval
+                    logger.error("Error retrieving owner with id: " + id, e);
+                    return Mono.empty();
+                });
     }
 
     /**
@@ -78,7 +97,7 @@ public class OwnerService {
      */
     public Mono<Owner> updateOwner(Long id, Owner updatedOwner) {
 
-        LoggerUtil.info(this.getClass().getName(), "Updating owner with id: " + id);
+        logger.info("Updating owner with id: " + id);
 
         // Check if the owner with the given id exists
         return ownerRepository.findById(id)
@@ -87,8 +106,14 @@ public class OwnerService {
                     existingOwner.setName(updatedOwner.getName());
                     existingOwner.setPhone_number(updatedOwner.getPhone_number());
 
+                    logger.info("Updated owner with id: " + id);
+
                     // Save the updated owner
                     return ownerRepository.save(existingOwner);
+                })
+                .onErrorResume(e -> {
+                    logger.error("Error updating owner with id: " + id, e);
+                    return Mono.error(e);
                 });
     }
 
@@ -102,19 +127,23 @@ public class OwnerService {
      */
     public Mono<Void> deleteOwner(Long id) {
 
-        LoggerUtil.info(this.getClass().getName(), "Deleting owner with id: " + id);
+        logger.info("Deleting owner with id: " + id);
 
         return petRepository.findByOwnerid(id)
                 .hasElements()
                 .flatMap(hasPets -> {
                     if (hasPets) {
-                        LoggerUtil.error(this.getClass().getName(),
+                        logger.error(
                                 "Owner with id " + id + " has pets and cannot be deleted.");
 
                         return Mono.empty();
                     } else {
                         return ownerRepository.deleteById(id);
                     }
+                })
+                .onErrorResume(e -> {
+                    logger.error("Error deleting owner with id: " + id, e);
+                    return Mono.error(e);
                 });
     }
 }

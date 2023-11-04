@@ -60,6 +60,14 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
+					<appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+						<encoder>
+							<pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+						</encoder>
+					</appender>
+						<root level="DEBUG"> <!-- Ensure the root logger level is set to DEBUG -->
+							<appender-ref ref="CONSOLE"/>
+						</root>
 					<excludes>
 						<exclude>
 							<groupId>org.projectlombok</groupId>

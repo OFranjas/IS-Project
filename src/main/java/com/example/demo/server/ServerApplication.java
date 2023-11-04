@@ -1,21 +1,22 @@
 package com.example.demo.server;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-import com.example.demo.server.utils.LoggerUtil;
-
 @SpringBootApplication
 public class ServerApplication {
+
+    private static final Logger logger = LoggerFactory.getLogger(ServerApplication.class);
 
     public static void main(String[] args) {
 
         try {
             SpringApplication.run(ServerApplication.class, args);
-            LoggerUtil.info(ServerApplication.class.getName(), "ServerApplication started successfully.");
+            logger.info("ServerApplication started.");
         } catch (Exception e) {
-            System.out.println("ServerApplication failed to start.");
-            System.out.println(e.getMessage());
+            logger.error(ServerApplication.class.getName(), "ServerApplication failed to start.", e);
         }
 
     }

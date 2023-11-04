@@ -2,16 +2,12 @@ package com.example.demo.client;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.springframework.web.reactive.function.client.WebClient;
 
-import com.example.demo.client.service.OwnerServiceClient;
 import com.example.demo.client.service.PetServiceClient;
 import com.example.demo.server.model.Owner;
 import com.example.demo.server.model.Pet;
@@ -213,11 +209,11 @@ public class Tasks {
 
         // Calculate sum of weights
         Mono<Double> sumMono = allPets.map(Pet::getWeight)
-                .reduce((Double) 0.0, Double::sum);
+                .reduce((Double) 0.0, (a, b) -> Double.sum(a.doubleValue(), b.doubleValue()));
 
         // Calculate sum of squares of weights
         Mono<Double> sumOfSquaresMono = allPets.map(pet -> Math.pow(pet.getWeight(), 2))
-                .reduce((Double) 0.0, Double::sum);
+                .reduce((Double) 0.0, (a, b) -> Double.sum(a.doubleValue(), b.doubleValue()));
 
         // Count the pets
         Mono<Long> countMono = allPets.count();

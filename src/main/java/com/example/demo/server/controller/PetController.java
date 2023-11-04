@@ -2,9 +2,9 @@ package com.example.demo.server.controller;
 
 import com.example.demo.server.model.Pet;
 import com.example.demo.server.service.PetService;
-import com.example.demo.server.utils.LoggerUtil;
 
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +18,8 @@ import reactor.core.publisher.Mono;
 @RequestMapping("/pet") // Mapping for Pet actions
 public class PetController {
 
+    private static final Logger logger = LoggerFactory.getLogger(PetController.class);
+
     @Autowired
     private PetService petService;
 
@@ -28,7 +30,7 @@ public class PetController {
      */
     @GetMapping
     public Flux<Pet> getAllPets() {
-        LoggerUtil.info(this.getClass().getName(), "Got request: GET /pet");
+        logger.debug("Got request: GET /pet");
         return petService.getAllPets();
     }
 
@@ -40,7 +42,7 @@ public class PetController {
      */
     @GetMapping("/{id}")
     public Mono<Pet> getPetById(@PathVariable Long id) {
-        LoggerUtil.info(this.getClass().getName(), "Got request: GET /pet/" + id);
+        logger.debug("Got request: GET /pet/" + id);
         return petService.getPetById(id);
     }
 
@@ -52,7 +54,7 @@ public class PetController {
      */
     @GetMapping("/delay/{id}")
     public Mono<Pet> getPetByIdWithDelay(@PathVariable Long id) {
-        LoggerUtil.info(this.getClass().getName(), "Got request: GET /pet/delay/" + id);
+        logger.debug("Got request: GET /pet/delay/" + id);
 
         return petService.getPetByIdWithDelay(id);
     }
@@ -66,7 +68,7 @@ public class PetController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<Pet> createPet(@RequestBody Pet pet) {
-        LoggerUtil.info(this.getClass().getName(), "Got request: POST /pet");
+        logger.debug("Got request: POST /pet");
         return petService.createPet(pet);
     }
 
@@ -79,7 +81,7 @@ public class PetController {
      */
     @PutMapping("/{id}")
     public Mono<Pet> updatePet(@PathVariable Long id, @RequestBody Pet pet) {
-        LoggerUtil.info(this.getClass().getName(), "Got request: PUT /pet/" + id);
+        logger.debug("Got request: PUT /pet/" + id);
         return petService.updatePet(id, pet);
     }
 
@@ -92,7 +94,7 @@ public class PetController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> deletePet(@PathVariable Long id) {
-        LoggerUtil.info(this.getClass().getName(), "Got request: DELETE /pet/" + id);
+        logger.debug("Got request: DELETE /pet/" + id);
         return petService.deletePet(id);
     }
 
@@ -104,7 +106,7 @@ public class PetController {
      */
     @GetMapping("/owner/{ownerId}")
     public Flux<Long> getPetIdsByOwnerId(@PathVariable Long ownerId) {
-        LoggerUtil.info(this.getClass().getName(), "Got request: GET /pet/owner/" + ownerId);
+        logger.debug("Got request: GET /pet/owner/" + ownerId);
         return petService.getPetIdsByOwnerId(ownerId);
     }
 }

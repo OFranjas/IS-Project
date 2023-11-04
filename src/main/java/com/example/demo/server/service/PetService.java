@@ -2,8 +2,12 @@ package com.example.demo.server.service;
 
 import com.example.demo.server.model.Pet;
 import com.example.demo.server.repository.PetRepository;
-import com.example.demo.server.utils.LoggerUtil;
+import com.example.demo.server.repository.OwnerRepository;
 
+import java.time.Duration;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -20,10 +24,14 @@ import reactor.core.publisher.Mono;
 @Service
 public class PetService {
 
-    private final PetRepository petRepository;
+    private static final Logger logger = LoggerFactory.getLogger(PetService.class);
 
-    public PetService(PetRepository petRepository) {
+    private final PetRepository petRepository;
+    private final OwnerRepository ownerRepository;
+
+    public PetService(PetRepository petRepository, OwnerRepository ownerRepository) {
         this.petRepository = petRepository;
+        this.ownerRepository = ownerRepository;
     }
 
     /**
@@ -33,11 +41,24 @@ public class PetService {
      * @return A reactive stream (Mono) containing the created pet.
      */
     public Mono<Pet> createPet(Pet pet) {
+
+        // Check if required parameters are missing
+        if (pet.getName() == null || pet.getSpecies() == null || pet.getBirth_date() == null
+                || pet.getWeight() == null || pet.getOwnerid() == null) {
+            // Log a warning and return an error Mono
+            logger.warn("Missing required parameters for creating a pet.");
+            return Mono.empty();
+        }
+
         // Ensure the ID is null to indicate an insert operation
         pet.setIdentifier(null);
-        LoggerUtil.info(this.getClass().getName(), "Creating pet with name: " + pet.getName());
 
-        return petRepository.save(pet);
+        logger.info("Creating pet with name: " + pet.getName());
+
+        return petRepository.save(pet).onErrorResume(e -> {
+            logger.error("Error creating pet with name: " + pet.getName(), e);
+            return Mono.error(e);
+        });
     }
 
     /**
@@ -46,9 +67,15 @@ public class PetService {
      * @return A reactive stream (Flux) of all pets.
      */
     public Flux<Pet> getAllPets() {
-        LoggerUtil.info(this.getClass().getName(), "Retrieving all pets");
+        logger.info("Retrieving all pets");
 
-        return petRepository.findAll();
+        return petRepository
+                .findAll()
+                .onErrorResume(e -> {
+                    logger.error("Error retrieving all pets", e);
+                    return Flux.error(e);
+                });
+
     }
 
     /**
@@ -59,10 +86,17 @@ public class PetService {
      * @return A reactive stream (Mono) containing the pet or empty if not found.
      */
     public Mono<Pet> getPetById(Long id) {
+        logger.info("Retrieving pet with id: " + id);
 
-        LoggerUtil.info(this.getClass().getName(), "Retrieving pet with id: " + id);
-
-        return petRepository.findById(id).switchIfEmpty(Mono.empty());
+        return petRepository.findById(id)
+                .switchIfEmpty(Mono.defer(() -> {
+                    logger.warn("No pet found with id: " + id);
+                    return Mono.empty();
+                }))
+                .onErrorResume(e -> {
+                    logger.error("Error retrieving pet with id: " + id, e);
+                    return Mono.error(e);
+                });
     }
 
     /**
@@ -73,11 +107,18 @@ public class PetService {
      * @return A reactive stream (Mono) containing the pet or empty if not found.
      */
     public Mono<Pet> getPetByIdWithDelay(Long id) {
+        logger.info("Retrieving pet with id: " + id + " with delay");
 
-        LoggerUtil.info(this.getClass().getName(), "Retrieving pet with id: " + id + " with delay");
-
-        return petRepository.findById(id).switchIfEmpty(Mono.empty())
-                .delayElement(java.time.Duration.ofSeconds(2));
+        return petRepository.findById(id)
+                .switchIfEmpty(Mono.defer(() -> {
+                    logger.warn("No pet found with id: " + id);
+                    return Mono.empty();
+                }))
+                .delayElement(Duration.ofSeconds(2))
+                .onErrorResume(e -> {
+                    logger.error("Error retrieving pet with id: " + id, e);
+                    return Mono.error(e);
+                });
     }
 
     /**
@@ -86,22 +127,34 @@ public class PetService {
      * @param pet The pet entity with updated values.
      * @return A reactive stream (Mono) containing the updated pet.
      */
-    public Mono<Pet> updatePet(Long id, Pet UptadetPet) {
+    public Mono<Pet> updatePet(Long id, Pet updatedPet) {
 
-        LoggerUtil.info(this.getClass().getName(), "Updating pet with id: " + id);
+        logger.info("Updating pet with id: " + id);
 
-        // Check if the pet with the given id exists
+        // Check if the pet with the given ID exists
         return petRepository.findById(id)
                 .flatMap(existingPet -> {
-                    // Update the existing pet with the data from pet
-                    existingPet.setName(UptadetPet.getName());
-                    existingPet.setSpecies(UptadetPet.getSpecies());
-                    existingPet.setBirth_date(UptadetPet.getBirth_date());
-                    existingPet.setWeight(UptadetPet.getWeight());
-                    existingPet.setOwnerid(UptadetPet.getOwnerid());
+                    if (existingPet != null) {
+                        // Update the existing pet with the data from updatedPet
+                        existingPet.setName(updatedPet.getName());
+                        existingPet.setSpecies(updatedPet.getSpecies());
+                        existingPet.setBirth_date(updatedPet.getBirth_date());
+                        existingPet.setWeight(updatedPet.getWeight());
+                        existingPet.setOwnerid(updatedPet.getOwnerid());
 
-                    // Save the updated pet
-                    return petRepository.save(existingPet);
+                        // Save the updated pet
+                        return petRepository.save(existingPet);
+                    } else {
+                        // Log an error if the pet with the given id doesn't exist
+                        logger.warn("Pet with id " + id + " not found.");
+                        // Return an error Mono with a custom error message
+                        return Mono.error(new RuntimeException("Pet with id " + id + " not found."));
+                    }
+                })
+                .onErrorResume(e -> {
+                    // Handle any errors that occur during the update operation
+                    logger.error("Error updating pet with id " + id, e);
+                    return Mono.error(e);
                 });
     }
 
@@ -113,13 +166,47 @@ public class PetService {
      */
     public Mono<Void> deletePet(Long id) {
 
-        LoggerUtil.info(this.getClass().getName(), "Deleting pet with id: " + id);
+        logger.info("Deleting pet with id: " + id);
 
-        return petRepository.deleteById(id);
+        return petRepository.findById(id)
+                .switchIfEmpty(Mono.defer(() -> {
+                    // Log a warning if the pet with the given id doesn't exist
+                    logger.warn("Pet with id " + id + " does not exist.");
+                    // Return an empty Mono to indicate no action was taken
+                    return Mono.empty();
+                }))
+                .flatMap(existingPet -> {
+                    // Delete the pet if it exists
+                    return petRepository.deleteById(id);
+                })
+                .onErrorResume(e -> {
+                    // Handle any errors that occur during the delete operation
+                    logger.error("Error deleting pet with id " + id, e);
+                    return Mono.error(e);
+                });
+
     }
 
     public Flux<Long> getPetIdsByOwnerId(Long ownerId) {
-        // Assuming findAllByOwnerId returns Flux<Pet>
-        return petRepository.findByOwnerid(ownerId).map(Pet::getIdentifier);
+        logger.info("Retrieving pet IDs for owner with id: " + ownerId);
+
+        // Check if the owner with the given id exists
+        return ownerRepository.findById(ownerId)
+                .flatMapMany(owner -> {
+                    // If the owner exists, retrieve the pet IDs
+                    return petRepository.findByOwnerid(ownerId)
+                            .map(Pet::getIdentifier);
+                })
+                .switchIfEmpty(Flux.defer(() -> {
+                    // Log a warning if the owner doesn't exist
+                    logger.warn("Owner with id " + ownerId + " does not exist.");
+                    return Flux.empty();
+                }))
+                .onErrorResume(e -> {
+                    // Handle any errors that occur during the retrieval
+                    logger.error("Error retrieving pet ids for owner with id " + ownerId, e);
+                    return Flux.error(e);
+                });
     }
+
 }
