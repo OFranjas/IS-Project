@@ -2,6 +2,7 @@ package com.example.demo.client;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -15,9 +16,7 @@ import com.example.demo.client.utils.FileOutputUtil;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 import reactor.util.function.Tuples;
-import reactor.util.retry.Retry;
 
 public class Tasks {
 
@@ -354,13 +353,14 @@ public class Tasks {
         Instant start = Instant.now();
 
         return allOwners
-                .subscribeOn(Schedulers.boundedElastic())
+                // .subscribeOn(Schedulers.boundedElastic())
                 .flatMap(owner -> petServiceClient.getPetIdsByOwnerId(owner.getIdentifier())
                         .count()
-                        .map(count -> Tuples.of(owner, count))
-                        .subscribeOn(Schedulers.boundedElastic()))
+                        .map(count -> Tuples.of(owner, count)))
+                // .subscribeOn(Schedulers.boundedElastic()))
                 .sort((tuple1, tuple2) -> Long.compare(tuple2.getT2(), tuple1.getT2())) // Sort by pet count
-                .retryWhen(Retry.backoff(3, Duration.ofSeconds(1)).maxBackoff(Duration.ofSeconds(10)))
+                // .retryWhen(Retry.backoff(3,
+                // Duration.ofSeconds(1)).maxBackoff(Duration.ofSeconds(10)))
                 .doOnNext(tuple -> {
                     // Process each tuple and append the results to the buffer
                     Owner owner = tuple.getT1();
@@ -405,13 +405,15 @@ public class Tasks {
 
         // Begin processing
         return allOwners
-                .flatMapSequential(owner -> petServiceClient.getPetIdsByOwnerId(owner.getIdentifier())
-                        .flatMapSequential(petId -> petServiceClient.getPetById(petId), 10) // Adjusted concurrency
+                .flatMap(owner -> petServiceClient.getPetIdsByOwnerId(owner.getIdentifier())
+                        .flatMap(petId -> petServiceClient.getPetById(petId), 16) // Adjusted concurrency
                         .map(Pet::getName) // Extract pet names
-                        .collectList() // Collect pet names per owner into a List<String>
-                        .map(names -> Tuples.of(owner, names)), 10) // Create a tuple of owner and List<String>
+                        .reduce(new ArrayList<String>(), (names, name) -> {
+                            names.add(name); // Accumulate pet names into the list
+                            return names;
+                        })
+                        .map(names -> Tuples.of(owner, names)), 16) // Create a tuple of owner and List<String>
                 .sort((tuple1, tuple2) -> Integer.compare(tuple2.getT2().size(), tuple1.getT2().size()))
-                .retryWhen(Retry.backoff(3, Duration.ofSeconds(5)).maxBackoff(Duration.ofSeconds(20)))
                 .doOnNext(tuple -> {
                     Owner owner = tuple.getT1();
                     List<String> petNames = tuple.getT2();

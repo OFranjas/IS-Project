@@ -43,7 +43,7 @@ public class OwnerService {
         // Ensure the ID is null to indicate an insert operation
         owner.setIdentifier(null);
 
-        logger.info("Creating owner with name: " + owner.getName());
+        logger.debug("Creating owner with name: " + owner.getName());
 
         return ownerRepository.save(owner).onErrorResume(e -> {
             logger.error("Error creating owner with name: " + owner.getName(), e);
@@ -58,7 +58,7 @@ public class OwnerService {
      */
     public Flux<Owner> getAllOwners() {
 
-        logger.info("Retrieving all owners");
+        logger.debug("Retrieving all owners");
 
         return ownerRepository.findAll()
                 .onErrorResume(e -> {
@@ -74,7 +74,7 @@ public class OwnerService {
      * @return A reactive stream (Mono) containing the owner or empty if not found.
      */
     public Mono<Owner> getOwnerById(Long id) {
-        logger.info("Retrieving owner with id: " + id);
+        logger.debug("Retrieving owner with id: " + id);
 
         return ownerRepository.findById(id)
                 .switchIfEmpty(Mono.defer(() -> {
@@ -97,7 +97,7 @@ public class OwnerService {
      */
     public Mono<Owner> updateOwner(Long id, Owner updatedOwner) {
 
-        logger.info("Updating owner with id: " + id);
+        logger.debug("Updating owner with id: " + id);
 
         // Check if the owner with the given id exists
         return ownerRepository.findById(id)
@@ -106,7 +106,7 @@ public class OwnerService {
                     existingOwner.setName(updatedOwner.getName());
                     existingOwner.setPhone_number(updatedOwner.getPhone_number());
 
-                    logger.info("Updated owner with id: " + id);
+                    logger.debug("Updated owner with id: " + id);
 
                     // Save the updated owner
                     return ownerRepository.save(existingOwner);
@@ -127,7 +127,7 @@ public class OwnerService {
      */
     public Mono<Void> deleteOwner(Long id) {
 
-        logger.info("Deleting owner with id: " + id);
+        logger.debug("Deleting owner with id: " + id);
 
         return petRepository.findByOwnerid(id)
                 .hasElements()

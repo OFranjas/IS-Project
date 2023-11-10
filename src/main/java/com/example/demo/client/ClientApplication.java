@@ -30,6 +30,7 @@ public class ClientApplication {
         this.tasks = new Tasks(webClient);
         this.allOwners = webClient.get().uri("http://localhost:8080/owner").retrieve().bodyToFlux(Owner.class);
         this.allPets = webClient.get().uri("http://localhost:8080/pet").retrieve().bodyToFlux(Pet.class);
+
         this.petServiceClient = new PetServiceClient(webClient);
     }
 

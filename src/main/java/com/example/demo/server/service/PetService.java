@@ -8,6 +8,7 @@ import java.time.Duration;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -53,7 +54,7 @@ public class PetService {
         // Ensure the ID is null to indicate an insert operation
         pet.setIdentifier(null);
 
-        logger.info("Creating pet with name: " + pet.getName());
+        logger.debug("Creating pet with name: " + pet.getName());
 
         return petRepository.save(pet).onErrorResume(e -> {
             logger.error("Error creating pet with name: " + pet.getName(), e);
@@ -67,7 +68,7 @@ public class PetService {
      * @return A reactive stream (Flux) of all pets.
      */
     public Flux<Pet> getAllPets() {
-        logger.info("Retrieving all pets");
+        logger.debug("Retrieving all pets");
 
         return petRepository
                 .findAll()
@@ -86,7 +87,7 @@ public class PetService {
      * @return A reactive stream (Mono) containing the pet or empty if not found.
      */
     public Mono<Pet> getPetById(Long id) {
-        logger.info("Retrieving pet with id: " + id);
+        logger.debug("Retrieving pet with id: " + id);
 
         return petRepository.findById(id)
                 .switchIfEmpty(Mono.defer(() -> {
@@ -107,7 +108,7 @@ public class PetService {
      * @return A reactive stream (Mono) containing the pet or empty if not found.
      */
     public Mono<Pet> getPetByIdWithDelay(Long id) {
-        logger.info("Retrieving pet with id: " + id + " with delay");
+        logger.debug("Retrieving pet with id: " + id + " with delay");
 
         return petRepository.findById(id)
                 .switchIfEmpty(Mono.defer(() -> {
@@ -129,7 +130,7 @@ public class PetService {
      */
     public Mono<Pet> updatePet(Long id, Pet updatedPet) {
 
-        logger.info("Updating pet with id: " + id);
+        logger.debug("Updating pet with id: " + id);
 
         // Check if the pet with the given ID exists
         return petRepository.findById(id)
@@ -166,7 +167,7 @@ public class PetService {
      */
     public Mono<Void> deletePet(Long id) {
 
-        logger.info("Deleting pet with id: " + id);
+        logger.debug("Deleting pet with id: " + id);
 
         return petRepository.findById(id)
                 .switchIfEmpty(Mono.defer(() -> {
@@ -188,7 +189,7 @@ public class PetService {
     }
 
     public Flux<Long> getPetIdsByOwnerId(Long ownerId) {
-        logger.info("Retrieving pet IDs for owner with id: " + ownerId);
+        logger.debug("Retrieving pet IDs for owner with id: " + ownerId);
 
         // Check if the owner with the given id exists
         return ownerRepository.findById(ownerId)
@@ -197,15 +198,16 @@ public class PetService {
                     return petRepository.findByOwnerid(ownerId)
                             .map(Pet::getIdentifier);
                 })
-                .switchIfEmpty(Flux.defer(() -> {
-                    // Log a warning if the owner doesn't exist
-                    logger.warn("Owner with id " + ownerId + " does not exist.");
-                    return Flux.empty();
-                }))
                 .onErrorResume(e -> {
                     // Handle any errors that occur during the retrieval
                     logger.error("Error retrieving pet ids for owner with id " + ownerId, e);
                     return Flux.error(e);
+                })
+                .doOnError(e -> {
+                    if (e instanceof EmptyResultDataAccessException) {
+                        // Log a warning if the owner doesn't exist
+                        logger.warn("Owner with id " + ownerId + " does not exist.");
+                    }
                 });
     }
 
